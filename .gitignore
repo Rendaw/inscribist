@@ -1,0 +1,16 @@
+.*~
+*~
+*.o
+*.a
+*.dll
+*.so
+*.debug
+*.exe
+inscribist
+*.bz2
+*.gz
+*.zip
+working
+*.inscribble
+*.inscribble.png
+*.inscribist.conf

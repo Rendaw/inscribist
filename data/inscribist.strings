@@ -1,0 +1,8 @@
+Locale = os.getenv("LANG")
+
+if Locale == nil then
+        dofile(StringsLocation .. "inscribist-en.strings")
+elseif string.sub(Locale, 0, 2) == "ja" then
+        dofile(StringsLocation .. "inscribist-jp.strings")
+else dofile(StringsLocation .. "inscribist-en.strings")
+end
