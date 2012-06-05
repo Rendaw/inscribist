@@ -1,0 +1,32 @@
+# Make sure tup.config exists for config variables. It should be created by configure.sh
+
+# Organizing flags and such
+REVISION = 5
+COMPILEFLAGS = -std=c++0x -pedantic -Wno-long-long -Wall -I@(ENVTEMP_PROJECTROOT) -D REVISION=$(REVISION)
+LINKFLAGS = 
+
+COMPILEDEBUGFLAGS = -ggdb -D DEBUG -O0 -fno-inline -fno-omit-frame-pointer -D DATALOCATION=\"data\" -D SETTINGSLOCATION=\"inscribist.conf\"
+COMPILERELEASEFLAGS = -D NDEBUG -O3 -D DATALOCATION=\"/usr/local/share/inscribist\"
+LINKDEBUGFLAGS = -ggdb
+LINKRELEASEFLAGS =
+
+INCLUDECONTENTS = @(ENV_CFLAGS) @(GEN_GTKCFLAGS)
+LINKCONTENTS = @(ENV_LDFLAGS) @(GEN_GTKLDFLAGS)
+
+BINEXTENSION = 
+
+# Applying settings (as possible) to flags
+ifeq (@(ENV_PLATFORM),windows)
+	COMPILEFLAGS += -DWINDOWS
+	BINEXTENSION = .exe
+endif
+ifeq (@(ENV_PLATFORM),linux)
+	COMPILEFLAGS += -DLINUX 
+endif 
+
+# Compilation/link macros with flags included
+!compiledebug = |> g++ $(COMPILEFLAGS) $(COMPILEDEBUGFLAGS) $(INCLUDECONTENTS) -c %f -o %o |> %o
+!compilerelease = |> g++ $(COMPILEFLAGS) $(COMPILERELEASEFLAGS) $(INCLUDECONTENTS) -c %f -o %o |> %o
+LINKDEBUG = g++ $(LINKFLAGS) $(LINKDEBUGFLAGS)
+LINKRELEASE = g++ $(LINKFLAGS) $(LINKRELEASEFLAGS)
+
