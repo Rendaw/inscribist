@@ -117,7 +117,7 @@ ColorButton::ColorButton(const String &Label, const Color &Initial, ActionHandle
 		gtk_widget_show(ColorButton::Label);
 	}
 
-	GdkColor GdkInitialColor = {0, Initial.Red * ColorMax, Initial.Green * ColorMax, Initial.Blue * ColorMax};
+	GdkColor GdkInitialColor = {0, static_cast<guint16>(Initial.Red * ColorMax), static_cast<guint16>(Initial.Green * ColorMax), static_cast<guint16>(Initial.Blue * ColorMax)};
 	gtk_color_button_set_color(GTK_COLOR_BUTTON(Data), &GdkInitialColor);
 	gtk_color_button_set_use_alpha(GTK_COLOR_BUTTON(Data), true);
 	gtk_color_button_set_alpha(GTK_COLOR_BUTTON(Data), Initial.Alpha * ColorMax);

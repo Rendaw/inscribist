@@ -8,8 +8,8 @@
 #include <cassert>
 #include <cmath>
 
-#include "general/vector.h"
-#include "general/range.h"
+#include <ren-general/vector.h>
+#include <ren-general/range.h>
 
 #include "gtkwrapper.h"
 #include "image.h"
@@ -40,7 +40,7 @@ class MainWindow : public ActionHandler
 			State.Position = NewPosition - ImageOffset;
 
 			double Found;
-			if (gdk_device_get_axis(CurrentDevice, AxisRawData, GDK_AXIS_PRESSURE, &Found))
+			if (gdk_device_get_axis(CurrentDevice, AxisRawData, GDK_AXIS_PRESSURE, &Found) && !isinf(Found) && !isnan(Found) && (Found >= 0))
 			{
 				if (Found < 0.05f) State.Radius = 0.0f;
 				else
@@ -159,7 +159,6 @@ class MainWindow : public ActionHandler
 				GdkRectangle Region = {0, 0, Canvas->allocation.width, Canvas->allocation.height};
 				gdk_window_invalidate_rect(Canvas->window, &Region, false);
 
-				FlatVector FlipCentering = GetImageFocusPercent();
 				if (Event->keyval == GDK_KEY_h)
 				{
 					Sketcher->FlipHorizontally();
@@ -245,10 +244,10 @@ class MainWindow : public ActionHandler
 				// Refresh the marked area
 				const GdkRectangle Region =
 				{
-					Marked.Start[0] + ImageOffset[0] - 2,
-					Marked.Start[1] + ImageOffset[1] - 2,
-					Marked.Size[0] + 4,
-					Marked.Size[1] + 4
+					static_cast<gint>(Marked.Start[0] + ImageOffset[0] - 2),
+					static_cast<gint>(Marked.Start[1] + ImageOffset[1] - 2),
+					static_cast<gint>(Marked.Size[0] + 4),
+					static_cast<gint>(Marked.Size[1] + 4)
 				};
 
 				gdk_window_invalidate_rect(Canvas->window, &Region, false);
@@ -278,10 +277,10 @@ class MainWindow : public ActionHandler
 				// Refresh the marked area
 				const GdkRectangle Region =
 				{
-					Marked.Start[0] + ImageOffset[0] - 2,
-					Marked.Start[1] + ImageOffset[1] - 2,
-					Marked.Size[0] + 4,
-					Marked.Size[1] + 4
+					static_cast<gint>(Marked.Start[0] + ImageOffset[0] - 2),
+					static_cast<gint>(Marked.Start[1] + ImageOffset[1] - 2),
+					static_cast<gint>(Marked.Size[0] + 4),
+					static_cast<gint>(Marked.Size[1] + 4)
 				};
 
 				gdk_window_invalidate_rect(Canvas->window, &Region, false);

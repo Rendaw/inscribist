@@ -3,10 +3,10 @@
 #ifndef settings_h
 #define settings_h
 
-#include "application/stringtable.h"
-#include "application/lightsettings.h"
-#include "general/color.h"
-#include "general/range.h"
+#include <ren-application/stringtable.h>
+#include <ren-application/lightsettings.h>
+#include <ren-general/color.h>
+#include <ren-general/range.h>
 
 #include "gtkwrapper.h"
 

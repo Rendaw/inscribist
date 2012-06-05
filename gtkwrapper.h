@@ -5,9 +5,9 @@
 
 #include <gtk/gtk.h>
 
-#include "general/color.h"
-#include "general/string.h"
-#include "general/range.h"
+#include <ren-general/color.h>
+#include <ren-general/string.h>
+#include <ren-general/range.h>
 
 bool Confirm(GtkWidget *Window, const String &Title, const String &Message);
 
