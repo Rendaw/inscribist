@@ -1,0 +1,9 @@
+[submodule "ren-general"]
+	path = ren-general
+	url = ./ren-general/
+[submodule "ren-script"]
+	path = ren-script
+	url = ./ren-script/
+[submodule "ren-application"]
+	path = ren-application
+	url = ./ren-application/
