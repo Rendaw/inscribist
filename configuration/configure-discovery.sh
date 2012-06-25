@@ -15,6 +15,9 @@ done
 $(cd .. && tup init)
 echo > tup.config # Clear the config file
 
+VERSION=5
+echo CONFIG_VERSION=$VERSION > tup.config
+
 # Auxiliary methods
 function ReadRest
 {
@@ -51,33 +54,64 @@ then
 	ReadRest
 fi
 
-if [ $DEBUG ]
+echo install-data-directory inscribist
+echo
+if [ ! $HELP ]
 then
-	echo c++ compile-object c++11 debug nooptimize
-	echo
-	if [ ! $HELP ]
-	then
-		read CompileObject
-		ReadRest
-	fi
+	read Location Extra
+	echo CONFIG_DATADIRECTORY=$Location
+	ReadRest
+fi
 
-	echo c++ compile-object input
-	echo
-	if [ ! $HELP ]
-	then
-		read CompileObjectInput
-		ReadRest
-	fi
+echo install-binary-directory inscribist
+echo
+if [ ! $HELP ]
+then
+	read Location Extra
+	echo CONFIG_BINDIRECTORY=$Location
+	ReadRest
+fi
 
-	echo c++ compile-object output
-	echo
-	if [ ! $HELP ]
-	then
-		read CompileObjectOutput
-		ReadRest
-	fi
+echo c++-compiler c++11
+echo
+if [ ! $HELP ]
+then
+	read Compiler FullPath Extra
+	echo CONFIG_COMPILERNAME=$Compiler >> tup.config
+	echo CONFIG_COMPILER=$FullPath >> tup.config
+	ReadRest
+fi
 
-	echo CONFIG_GENERATEOBJECT=$CompileObject $CompileObjectInput %f $CompileObject
-else
+echo c++-library lua
+echo
+if [ ! $HELP ]
+then
+	read IncludeDirectory LibraryDirectory LibraryName ShortName Extra
+	echo CONFIG_LUAINCLUDEDIRECTORY=$IncludeDirectory >> tup.config
+	echo CONFIG_LUALIBRARYDIRECTORY=$LibraryDirectory >> tup.config
+	echo CONFIG_LUALIBRARYNAME=$ShortName >> tup.config
+	ReadRest
+fi
+
+echo c++-library bz2
+echo
+if [ ! $HELP ]
+then
+	read IncludeDirectory LibraryDirectory LibraryName ShortName Extra
+	echo CONFIG_BZ2INCLUDEDIRECTORY=$IncludeDirectory >> tup.config
+	echo CONFIG_BZ2LIBRARYDIRECTORY=$LibraryDirectory >> tup.config
+	echo CONFIG_BZ2LIBRARYNAME=$ShortName >> tup.config
+	ReadRest
+fi
+
+echo c++-library gtk ">2.2" "<3.0"
+echo
+if [ ! $HELP ]
+then
+	read IncludeDirectory LibraryDirectory LibraryName ShortName Extra
+	echo CONFIG_GTKINCLUDEDIRECTORY=$IncludeDirectory >> tup.config
+	echo CONFIG_GTKLIBRARYDIRECTORY=$LibraryDirectory >> tup.config
+	echo CONFIG_GTKLIBRARYNAME=$ShortName >> tup.config
+	ReadRest
 fi
 
