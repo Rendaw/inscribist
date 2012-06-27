@@ -33,8 +33,8 @@ echo flag debug
 echo
 if [ ! $HELP ]
 then
-	read debug extra
-	if [ "$debug" -eq "true" ]
+	read Debug Extra
+	if [ "$Debug" -eq "true" ]
 	then
 		echo CONFIG_DEBUG=true >> tup.config
 		DEBUG=set
