@@ -12,11 +12,17 @@ do
 done
 
 # Set up various things
-$(cd .. && tup init)
-echo > tup.config # Clear the config file
+if [ ! $HELP ]
+then
+	$(cd .. && tup init)
+	echo > tup.config # Clear the config file
+fi
 
 VERSION=5
-echo CONFIG_VERSION=$VERSION > tup.config
+if [ ! $HELP ]
+then
+	echo CONFIG_VERSION=$VERSION > tup.config
+fi
 
 # Auxiliary methods
 function ReadRest
