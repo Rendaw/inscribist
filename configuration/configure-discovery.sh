@@ -88,7 +88,7 @@ then
 	ReadRest
 fi
 
-echo c++-library lua
+echo c-library lua
 echo
 if [ ! $HELP ]
 then
@@ -99,7 +99,7 @@ then
 	ReadRest
 fi
 
-echo c++-library bz2
+echo c-library bz2
 echo
 if [ ! $HELP ]
 then
@@ -110,7 +110,7 @@ then
 	ReadRest
 fi
 
-echo c++-library gtk ">2.2" "<3.0"
+echo c-library gtk
 echo
 if [ ! $HELP ]
 then
