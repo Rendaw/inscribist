@@ -41,7 +41,55 @@ echo c-library bz2
 echo
 ReadRest
 
-echo c-library gtk
+echo c-library gtk-x11-2.0
+echo
+ReadRest
+
+echo c-library gdk-x11-2.0
+echo
+ReadRest
+
+echo c-library atk-1.0
+echo
+ReadRest
+
+echo c-library gio-2.0
+echo
+ReadRest
+
+echo c-library pangoft2-1.0
+echo
+ReadRest
+
+echo c-library pangocairo-1.0
+echo
+ReadRest
+
+echo c-library gdk_pixbuf-2.0
+echo
+ReadRest
+
+echo c-library cairo
+echo
+ReadRest
+
+echo c-library pango-1.0
+echo
+ReadRest
+
+echo c-library freetype
+echo
+ReadRest
+
+echo c-library fontconfig
+echo
+ReadRest
+
+echo c-library gobject-2.0
+echo
+ReadRest
+
+echo c-library glib-2.0
 echo
 ReadRest
 

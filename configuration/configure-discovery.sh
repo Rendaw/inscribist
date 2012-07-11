@@ -65,16 +65,16 @@ echo
 if [ ! $HELP ]
 then
 	read Location Extra
-	echo CONFIG_DATADIRECTORY=$Location
+	echo CONFIG_DATADIRECTORY=$Location >> tup.config
 	ReadRest
 fi
 
-echo install-binary-directory inscribist
+echo install-executable-directory inscribist
 echo
 if [ ! $HELP ]
 then
 	read Location Extra
-	echo CONFIG_BINDIRECTORY=$Location
+	echo CONFIG_EXECUTABLEDIRECTORY=$Location >> tup.config
 	ReadRest
 fi
 
@@ -88,36 +88,52 @@ then
 	ReadRest
 fi
 
-echo c-library lua
-echo
-if [ ! $HELP ]
-then
-	read IncludeDirectory LibraryDirectory LibraryName ShortName Extra
-	echo CONFIG_LUAINCLUDEDIRECTORY=$IncludeDirectory >> tup.config
-	echo CONFIG_LUALIBRARYDIRECTORY=$LibraryDirectory >> tup.config
-	echo CONFIG_LUALIBRARYNAME=$ShortName >> tup.config
-	ReadRest
-fi
+function GetLibrary
+{
+	echo c-library $1
+	echo
+	if [ ! $HELP ]
+	then
+		read Filename LibraryDirectory IncludeDirectory Extra
+		if [ -z "$BuildLibraryDirectories" ]
+		then
+			BuildLibraryDirectories=$LibraryDirectory
+		else
+			BuildLibraryDirectories="$BuildLibraryDirectories\n$LibraryDirectory"
+		fi
+		if [ -z "$BuildIncludeDirectories" ]
+		then
+			BuildIncludeDirectories=$IncludeDirectory
+		else
+			BuildIncludeDirectories="$BuildIncludeDirectories\n$IncludeDirectory"
+		fi
+		Libraries="$Libraries -l$1"
 
-echo c-library bz2
-echo
-if [ ! $HELP ]
-then
-	read IncludeDirectory LibraryDirectory LibraryName ShortName Extra
-	echo CONFIG_BZ2INCLUDEDIRECTORY=$IncludeDirectory >> tup.config
-	echo CONFIG_BZ2LIBRARYDIRECTORY=$LibraryDirectory >> tup.config
-	echo CONFIG_BZ2LIBRARYNAME=$ShortName >> tup.config
-	ReadRest
-fi
+		ReadRest
+	fi
+}
 
-echo c-library gtk
-echo
-if [ ! $HELP ]
-then
-	read IncludeDirectory LibraryDirectory LibraryName ShortName Extra
-	echo CONFIG_GTKINCLUDEDIRECTORY=$IncludeDirectory >> tup.config
-	echo CONFIG_GTKLIBRARYDIRECTORY=$LibraryDirectory >> tup.config
-	echo CONFIG_GTKLIBRARYNAME=$ShortName >> tup.config
-	ReadRest
-fi
+GetLibrary lua
+GetLibrary bz2
+GetLibrary gtk-x11-2.0
+GetLibrary gdk-x11-2.0
+GetLibrary atk-1.0
+GetLibrary gio-2.0
+GetLibrary pangoft2-1.0
+GetLibrary pangocairo-1.0
+GetLibrary gdk_pixbuf-2.0
+GetLibrary cairo
+GetLibrary pango-1.0
+GetLibrary freetype
+GetLibrary fontconfig
+GetLibrary gobject-2.0
+GetLibrary glib-2.0
+
+echo -n CONFIG_LIBDIRECTORIES=>> tup.config
+sort -u <(echo -e $BuildLibraryDirectories) | while read line; do echo -n " -L$line" >> tup.config; done
+echo >> tup.config
+echo -n CONFIG_INCLUDEDIRECTORIES=>> tup.config
+sort -u <(echo -e $BuildIncludeDirectories) | while read line; do echo -n " -I$line" >> tup.config; done
+echo >> tup.config
+echo CONFIG_LIBRARIES=$Libraries >> tup.config
 
