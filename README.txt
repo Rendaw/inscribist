@@ -11,9 +11,10 @@ Concepts
 Inscribist requires Lua, GTK+ 2 and bzip2. Inscribist was inspired by gsumi.
 
 Installation
-1. Tweak variables in the Makefile (the makefile defaults to installing into /usr/local/bin)
-2. Run "make" to compile the application.
-3. Run "sudo make install" to copy the files into system directories.
+Note: For installation only, you must have Tup and Zarbosoft Self-Discovery installed.
+1. Run Self-Discovery on configure.discovery.sh (selfdiscovery ./configure.discovery.sh).  Append the "help" flag for help on configuration.
+2. Run "tup upd"
+3. Run "sudo ./install.sh"
 4. Assuming the install location is in your path, you can now start Inscribist by typing "inscribist" on the command line.
 
 URL: www.zarbosoft.com/inscribist

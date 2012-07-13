@@ -1,30 +1,9 @@
 #!/bin/bash
-DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-cd $DIR
+ROOTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
-# Read initial configuration
-while read line
-do
-	if [ -z "$line" ]; then break; fi
-	case "$line" in
-		help) HELP=set ;;
-	esac
-done
+PROJECTVERSION=5
 
-# Set up various things
-if [ ! $HELP ]
-then
-	$(cd .. && tup init)
-	echo > tup.config # Clear the config file
-fi
-
-VERSION=5
-if [ ! $HELP ]
-then
-	echo CONFIG_VERSION=$VERSION > tup.config
-fi
-
-# Auxiliary methods
+# Read initial configuration, verify discovery command version
 function ReadRest
 {
 	while read line
@@ -33,18 +12,81 @@ function ReadRest
 	done
 }
 
-# Start requesting information
-# ...
-echo flag debug
+while read line
+do
+	if [ -z "$line" ]; then break; fi
+	case "$line" in
+		help) HELP=set ;;
+	esac
+done
+
+echo version 0
+echo
+if [ ! $HELP ]; then ReadRest; fi
+
+# Prepare directories for installation
+echo flag cleanconfigs "Deletes configuration-generated files.  Note: if you reconfigure, these files will be entirely overwritten, so it is not necessary to do this to reconfigure."
+echo
+if [ ! $HELP ]
+then
+	read Clean Extra
+	ReadRest
+	if [ "$Clean" == "true" ]
+	then
+		rm -r variant-debug
+		rm -r variant-release
+		rm installsettings.sh
+		exit 0
+	fi
+fi
+
+VARIANTDIR=$ROOTDIR/variant-release
+echo flag debug "Enables building a debug executable.  The debug executable will be built in variant-debug/."
 echo
 if [ ! $HELP ]
 then
 	read Debug Extra
-	if [ "$Debug" -eq "true" ]
+	ReadRest
+	if [ "$Debug" == "true" ]
 	then
-		echo CONFIG_DEBUG=true >> tup.config
+		VARIANTDIR=$ROOTDIR/variant-debug
 		DEBUG=set
 	fi
+fi
+
+if [ ! $HELP ]
+then
+	if [ ! -d $VARIANTDIR ]; then mkdir $VARIANTDIR; fi
+	cd $VARIANTDIR
+
+	if [ ! -d $ROOTDIR/.tup ]; then $(cd $ROOTDIR && tup init); fi
+
+	echo > tup.config
+	if [ $DEBUG ]; then echo CONFIG_DEBUG=true >> tup.config; fi
+	echo CONFIG_ROOT=$ROOTDIR >> tup.config
+	echo CONFIG_VERSION=$PROJECTVERSION >> tup.config
+	echo CONFIG_CFLAGS=$CFLAGS >> tup.config
+
+	echo > $ROOTDIR/installsettings.sh
+fi
+
+# Start gathering build information
+echo install-data-directory inscribist
+echo
+if [ ! $HELP ]
+then
+	read Location Extra
+	echo DATADIRECTORY=$Location >> $ROOTDIR/installsettings.sh
+	echo CONFIG_DATADIRECTORY=$Location >> tup.config
+	ReadRest
+fi
+
+echo install-executable-directory inscribist
+echo
+if [ ! $HELP ]
+then
+	read Location Extra
+	echo EXECUTABLEDIRECTORY=$Location >> $ROOTDIR/installsettings.sh
 	ReadRest
 fi
 
@@ -57,24 +99,6 @@ then
 		windows) echo CONFIG_PLATFORM=windows >> tup.config ;;
 		*) echo CONFIG_PLATFORM=linux >> tup.config ;;
 	esac
-	ReadRest
-fi
-
-echo install-data-directory inscribist
-echo
-if [ ! $HELP ]
-then
-	read Location Extra
-	echo CONFIG_DATADIRECTORY=$Location >> tup.config
-	ReadRest
-fi
-
-echo install-executable-directory inscribist
-echo
-if [ ! $HELP ]
-then
-	read Location Extra
-	echo CONFIG_EXECUTABLEDIRECTORY=$Location >> tup.config
 	ReadRest
 fi
 
@@ -95,6 +119,7 @@ function GetLibrary
 	if [ ! $HELP ]
 	then
 		read Filename LibraryDirectory IncludeDirectory Extra
+		LibraryName=$(echo $Filename | sed -e "s/^lib//" -e "s/\.so\(\.[0-9]\+\)*//g")
 		if [ -z "$BuildLibraryDirectories" ]
 		then
 			BuildLibraryDirectories=$LibraryDirectory
@@ -107,7 +132,7 @@ function GetLibrary
 		else
 			BuildIncludeDirectories="$BuildIncludeDirectories\n$IncludeDirectory"
 		fi
-		Libraries="$Libraries -l$1"
+		Libraries="$Libraries -l$LibraryName"
 
 		ReadRest
 	fi
