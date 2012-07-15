@@ -1,9 +1,9 @@
 [submodule "ren-general"]
 	path = ren-general
-	url = ./ren-general/
+	url = ssh://rendaw@peppercorn.dyndns.org/~/code/libraries/ren-general.git
 [submodule "ren-script"]
 	path = ren-script
-	url = ./ren-script/
+	url = ssh://rendaw@peppercorn.dyndns.org/~/code/libraries/ren-script.git
 [submodule "ren-application"]
 	path = ren-application
-	url = ./ren-application/
+	url = ssh://rendaw@peppercorn.dyndns.org/~/code/libraries/ren-application.git
