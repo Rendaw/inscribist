@@ -11,11 +11,16 @@
 
 #include "gtkwrapper.h"
 
-RangeF const HeavyRadiusRange(4, 1000);
-RangeF const LightRadiusRange(0, 100);
 RangeF const DampingRange(0.1, 16);
-RangeD const SizeRange(1000, 100000);
-RangeD const ScaleRange(1, 100);
+RangeD const SizeRange(1000, 1000000);
+unsigned int const SizeDefault(20000);
+RangeF const HeavyRadiusRange(4, SizeRange.Max);
+float const HeavyRadiusDefault(20);
+RangeF const LightRadiusRange(0, SizeRange.Max);
+float const LightRadiusDefault(5);
+RangeD const ScaleRange(1, SizeRange.Max / 500); // Allow users to zoom out to around 500x500 px
+unsigned int const DisplayScaleDefault = std::max(1u, (SizeDefault / 2000));
+unsigned int const ExportScaleDefault = std::max(1u, (SizeDefault / 2000));
 
 DirectoryPath const DataLocation(DATALOCATION);
 String const Extension(".inscribble");

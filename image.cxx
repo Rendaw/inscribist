@@ -951,19 +951,16 @@ Region Image::Mark(CursorState const &Start, CursorState const &End, bool const 
 
 		Cap(FlatVector const &Center, float const &Radius) :
 			Radius(Radius), Center(Center),
-			Bottom(ceil(Center[1] - Radius)), Top(floor(Center[1] + Radius))
-		{
-			assert(Center[1] - Radius <= (float)Bottom);
-			assert(Center[1] + Radius >= (float)Top);
-		}
+			Bottom(-floor(Radius)), Top(floor(Radius))
+			{}
 
 		void ExpandMarkBounds(int &Left, int &Right, int const &CurrentRow) const
 		{
-			if ((CurrentRow >= Bottom) && (CurrentRow <= Top))
+			float const RelativeRow = CurrentRow - Center[1];
+			if ((RelativeRow >= Bottom) && (RelativeRow <= Top))
 			{
-				float const VerticalDistance = CurrentRow - Center[1];
-				assert(fabs(VerticalDistance) <= Radius);
-				float const CapWidth = sqrt(Radius * Radius - VerticalDistance * VerticalDistance);
+				assert(fabs(RelativeRow) <= Radius);
+				float const CapWidth = sqrt(Radius * Radius - RelativeRow * RelativeRow);
 				Left = std::min(Left, (int)floor(Center[0] - CapWidth));
 				Right = std::max(Right, (int)ceil(Center[0] + CapWidth));
 			}
@@ -973,8 +970,8 @@ Region Image::Mark(CursorState const &Start, CursorState const &End, bool const 
 		ToCap(To, End.Radius);
 
 	int const
-		CapBelowStart = std::min(FromCap.Bottom, ToCap.Bottom),
-		CapAboveEnd = std::max(FromCap.Top, ToCap.Top),
+		CapBelowStart = std::min(FromCap.Center[1] + FromCap.Bottom, ToCap.Center[1] + ToCap.Bottom),
+		CapAboveEnd = std::max(FromCap.Center[1] + FromCap.Top, ToCap.Center[1] + ToCap.Top),
 		CapHorizontalMin = std::min(FromCap.Center[0] - FromCap.Radius, ToCap.Center[0] - ToCap.Radius),
 		CapHorizontalMax = std::max(FromCap.Center[0] + FromCap.Radius, ToCap.Center[0] + ToCap.Radius);
 

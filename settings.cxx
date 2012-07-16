@@ -19,8 +19,8 @@ DeviceSettings::DeviceSettings(String const &Name, float Damping, unsigned int B
 SettingsData::SettingsData(void) :
 	LightSettings(LocateUserConfigFile("inscribist.conf"))
 {
-	ImageSize[0] = Get("ImageSizeX", SizeRange.Min * 4.0f);
-	ImageSize[1] = Get("ImageSizeY", SizeRange.Min * 4.0f);
+	ImageSize[0] = Get("ImageSizeX", SizeDefault);
+	ImageSize[1] = Get("ImageSizeY", SizeDefault);
 
 	DisplayPaper.Red = Get("DisplayPaperRed", 0.5f);
 	DisplayPaper.Green = Get("DisplayPaperGreen", 0.5f);
@@ -37,21 +37,21 @@ SettingsData::SettingsData(void) :
 	ExportPaper.Blue = Get("ExportPaperBlue", 0.0f);
 	ExportPaper.Alpha = Get("ExportPaperAlpha", 0.0f);
 
-	DisplayScale = ScaleRange.Constrain(Get("DisplayScale", ScaleRange.Min * 4.0f));
+	DisplayScale = ScaleRange.Constrain(Get("DisplayScale", DisplayScaleDefault));
 
 	ExportInk.Red = Get("ExportInkRed", 0.0f);
 	ExportInk.Green = Get("ExportInkGreen", 0.0f);
 	ExportInk.Blue = Get("ExportInkBlue", 0.0f);
 	ExportInk.Alpha = Get("ExportInkAlpha", 1.0f);
 
-	ExportScale = ScaleRange.Constrain(Get("ExportScale", ScaleRange.Min * 4.0f));
+	ExportScale = ScaleRange.Constrain(Get("ExportScale", ExportScaleDefault));
 
 	for (unsigned int CurrentBrush = 0; CurrentBrush < 10; CurrentBrush++)
 	{
 		Brushes.push_back(new BrushSettings(
 			Get("Brush" + AsString(CurrentBrush) + "_Black", true),
-			HeavyRadiusRange.Constrain(Get("Brush" + AsString(CurrentBrush) + "_HeavyRadius", 40)),
-			LightRadiusRange.Constrain(Get("Brush" + AsString(CurrentBrush) + "_LightRadius", 1))));
+			HeavyRadiusRange.Constrain(Get("Brush" + AsString(CurrentBrush) + "_HeavyRadius", HeavyRadiusDefault)),
+			LightRadiusRange.Constrain(Get("Brush" + AsString(CurrentBrush) + "_LightRadius", LightRadiusDefault))));
 	}
 }
 

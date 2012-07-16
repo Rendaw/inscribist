@@ -53,7 +53,7 @@ SettingsDialog::SettingsDialog(GtkWidget *Window, SettingsData &Settings) :
 	DisplayBox(true, 3, 16),
 	DisplayPaperColor(Local("Paper color: "), Settings.DisplayPaper, this),
 	DisplayInkColor(Local("Ink color: "), Settings.DisplayInk, this),
-	DisplayScale(Local("Downscale: "), ScaleRange, ScaleRange.Constrain(Settings.DisplayScale)),
+	DisplayScale(Local("New image downscale: "), ScaleRange, ScaleRange.Constrain(Settings.DisplayScale)),
 	DisplaySeparator1(gtk_vseparator_new()), DisplaySeparator2(gtk_vseparator_new()),
 
 	ExportFrame(gtk_frame_new(Local("Export settings").c_str())),
