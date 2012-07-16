@@ -62,23 +62,44 @@ then
 	if [ ! -d $ROOTDIR/.tup ]; then $(cd $ROOTDIR && tup init); fi
 
 	echo > tup.config
-	if [ $DEBUG ]; then echo CONFIG_DEBUG=true >> tup.config; fi
-	echo CONFIG_ROOT=$ROOTDIR >> tup.config
-	echo CONFIG_VERSION=$PROJECTVERSION >> tup.config
-	echo CONFIG_CFLAGS=$CFLAGS >> tup.config
+	if [ ! $DEBUG ]; then echo > $ROOTDIR/installsettings.sh; fi
+fi
 
-	echo > $ROOTDIR/installsettings.sh
+function WriteTupConfig
+{
+	echo $1 >> tup.config
+}
+
+function WriteInstallConfig
+{
+	if [ ! $DEBUG ]; then echo $1 >> $ROOTDIR/installsettings.sh; fi
+}
+
+if [ ! $HELP ]
+then
+	if [ $DEBUG ]; then WriteTupConfig "CONFIG_DEBUG=true"; fi
+	WriteTupConfig "CONFIG_ROOT=$ROOTDIR"
+	WriteTupConfig "CONFIG_VERSION=$PROJECTVERSION"
+	WriteTupConfig "CONFIG_CFLAGS=$CFLAGS"
 fi
 
 # Start gathering build information
-echo install-data-directory inscribist
-echo
-if [ ! $HELP ]
+if [ ! $DEBUG ]
 then
-	read Location Extra
-	echo DATADIRECTORY=$Location >> $ROOTDIR/installsettings.sh
-	echo CONFIG_DATADIRECTORY=$Location >> tup.config
-	ReadRest
+	echo install-data-directory inscribist
+	echo
+	if [ ! $HELP ]
+	then
+		read Location Extra
+		WriteInstallConfig "DATADIRECTORY=$Location"
+		WriteTupConfig "CONFIG_DATADIRECTORY=$Location"
+		ReadRest
+	fi
+else
+	if [ ! $HELP ]
+	then
+		WriteTupConfig "CONFIG_DATADIRECTORY=$ROOTDIR/data"
+	fi
 fi
 
 echo install-executable-directory inscribist
@@ -86,7 +107,7 @@ echo
 if [ ! $HELP ]
 then
 	read Location Extra
-	echo EXECUTABLEDIRECTORY=$Location >> $ROOTDIR/installsettings.sh
+	WriteInstallConfig "EXECUTABLEDIRECTORY=$Location"
 	ReadRest
 fi
 
@@ -96,8 +117,8 @@ if [ ! $HELP ]
 then
 	read Family Iteration Extra
 	case "$family" in
-		windows) echo CONFIG_PLATFORM=windows >> tup.config ;;
-		*) echo CONFIG_PLATFORM=linux >> tup.config ;;
+		windows) WriteTupConfig "CONFIG_PLATFORM=windows" ;;
+		*) WriteTupConfig "CONFIG_PLATFORM=linux" ;;
 	esac
 	ReadRest
 fi
@@ -107,8 +128,8 @@ echo
 if [ ! $HELP ]
 then
 	read Compiler FullPath Extra
-	echo CONFIG_COMPILERNAME=$Compiler >> tup.config
-	echo CONFIG_COMPILER=$FullPath >> tup.config
+	WriteTupConfig "CONFIG_COMPILERNAME=$Compiler"
+	WriteTupConfig "CONFIG_COMPILER=$FullPath"
 	ReadRest
 fi
 
@@ -154,11 +175,15 @@ GetLibrary fontconfig
 GetLibrary gobject-2.0
 GetLibrary glib-2.0
 
-echo -n CONFIG_LIBDIRECTORIES=>> tup.config
-sort -u <(echo -e $BuildLibraryDirectories) | while read line; do echo -n " -L$line" >> tup.config; done
-echo >> tup.config
-echo -n CONFIG_INCLUDEDIRECTORIES=>> tup.config
-sort -u <(echo -e $BuildIncludeDirectories) | while read line; do echo -n " -I$line" >> tup.config; done
-echo >> tup.config
-echo CONFIG_LIBRARIES=$Libraries >> tup.config
-
+if [ ! $HELP ]
+then
+	WriteTupConfig $(
+		echo -n CONFIG_LIBDIRECTORIES=
+		sort -u <(echo -e $BuildLibraryDirectories) | while read line; do echo -n " -L$line"; done
+	)
+	WriteTupConfig $(
+		echo -n CONFIG_INCLUDEDIRECTORIES=
+		sort -u <(echo -e $BuildIncludeDirectories) | while read line; do echo -n " -I$line"; done
+	)
+	WriteTupConfig "CONFIG_LIBRARIES=$Libraries"
+fi

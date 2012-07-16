@@ -13,8 +13,8 @@ ifeq (@(ENV_PLATFORM),windows)
 	BINEXTENSION = .exe
 endif
 ifeq (@(ENV_PLATFORM),linux)
-	COMPILEFLAGS += -DLINUX 
-endif 
+	COMPILEFLAGS += -DLINUX
+endif
 
 # Compilation
 GENERAL_SOURCES = \
@@ -22,12 +22,15 @@ GENERAL_SOURCES = \
 	../ren-general/range.cxx \
 	../ren-general/region.cxx \
 	../ren-general/rotation.cxx \
-	../ren-general/vector.cxx
+	../ren-general/vector.cxx \
+	../ren-general/filesystem.cxx \
+	../ren-general/exception.cxx
 APPLICATION_SOURCES = \
 	../ren-application/lightsettings.cxx \
 	../ren-application/stringtable.cxx
 SCRIPT_SOURCES = \
-	../ren-script/script.cxx
+	../ren-script/script.cxx \
+	../ren-script/databuilder.cxx
 INSCRIBIST_SOURCES = \
 	../main.cxx \
 	../settingsdialog.cxx \
@@ -36,7 +39,7 @@ INSCRIBIST_SOURCES = \
 	../image.cxx \
 	../gtkwrapper.cxx
 
-SOURCES = $(GENERAL_SOURCES) $(SCRIPT_SOURCES) $(APPLICATION_SOURCES) $(INSCRIBIST_SOURCES)
+SOURCES = $(APPLICATION_SOURCES) $(SCRIPT_SOURCES) $(GENERAL_SOURCES) $(INSCRIBIST_SOURCES)
 
 : foreach $(SOURCES) |> !object |> %B.o {objects}
 : {objects} |> !executable |> inscribist$(BINEXTENSION)

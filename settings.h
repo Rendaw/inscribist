@@ -3,10 +3,11 @@
 #ifndef settings_h
 #define settings_h
 
-#include <ren-application/stringtable.h>
-#include <ren-application/lightsettings.h>
-#include <ren-general/color.h>
-#include <ren-general/range.h>
+#include "ren-application/stringtable.h"
+#include "ren-application/lightsettings.h"
+#include "ren-general/color.h"
+#include "ren-general/range.h"
+#include "ren-general/filesystem.h"
 
 #include "gtkwrapper.h"
 
@@ -16,16 +17,7 @@ RangeF const DampingRange(0.1, 16);
 RangeD const SizeRange(1000, 100000);
 RangeD const ScaleRange(1, 100);
 
-#ifdef SETTINGSLOCATION
-String const SettingsFilename(SETTINGSLOCATION);
-#else
-String const SettingsFilename(GetHomeLocation() + "/.inscribist.conf");
-#endif
-#ifdef DATALOCATION
-String const DataLocation(DATALOCATION);
-#else
-String const DataLocation(GetHomeLocation() + "/.inscribist/");
-#endif
+DirectoryPath const DataLocation(DATALOCATION);
 String const Extension(".inscribble");
 
 float const BackgroundColorScale = 0.85f;

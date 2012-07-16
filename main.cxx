@@ -425,7 +425,7 @@ class MainWindow : public ActionHandler
 		{
 			// Construct the window
 			gtk_window_set_default_size(GTK_WINDOW(Window), 400, 440);
-			gtk_window_set_icon_from_file(GTK_WINDOW(Window), (DataLocation + "/icon32.png").c_str(), NULL);
+			gtk_window_set_icon_from_file(GTK_WINDOW(Window), (DataLocation.Select("/icon32.png")).AsAbsoluteString().c_str(), NULL);
 			gtk_window_set_title(GTK_WINDOW(Window), Local("Inscribist").c_str());
 			gtk_container_set_reallocate_redraws(GTK_CONTAINER(Window), true);
 			g_signal_connect(G_OBJECT(Window), "configure-event", G_CALLBACK(ResizeViewportCallback), this);
@@ -614,7 +614,7 @@ class MainWindow : public ActionHandler
 						SaveFilename = PreOut;
 						g_free(PreOut);
 
-						if (Right(SaveFilename, Extension.size()) != Extension)
+						if ((SaveFilename.length() < Extension.size()) ||  (SaveFilename.substr(SaveFilename.length() - Extension.size(), String::npos) != Extension))
 							SaveFilename += Extension;
 
 						/// Save the image
@@ -626,7 +626,7 @@ class MainWindow : public ActionHandler
 						String Out = PreOut;
 						g_free(PreOut);
 
-						if (Right(Out, ExportExtension.size()) != ExportExtension)
+						if ((Out.length() < ExportExtension.size()) ||  (Out.substr(Out.length() - ExportExtension.size(), String::npos) != ExportExtension))
 							Out += ExportExtension;
 
 						/// Export the image

@@ -5,7 +5,7 @@
 #include <cassert>
 #include <iostream>
 
-extern StringTable const Local(DataLocation + "/", "inscribist.strings");
+extern StringTable const Local(DataLocation.Select("inscribist.strings"));
 extern String const NewFilename(Local("fresh" + Extension));
 
 BrushSettings::BrushSettings(bool Black, float HeavyRadius, float LightRadius) :
@@ -17,7 +17,7 @@ DeviceSettings::DeviceSettings(String const &Name, float Damping, unsigned int B
 	{}
 
 SettingsData::SettingsData(void) :
-	LightSettings(SettingsFilename)
+	LightSettings(LocateUserConfigFile("inscribist.conf"))
 {
 	ImageSize[0] = Get("ImageSizeX", SizeRange.Min * 4.0f);
 	ImageSize[1] = Get("ImageSizeY", SizeRange.Min * 4.0f);
