@@ -12,8 +12,8 @@ bool Confirm(GtkWidget *Window, const String &Title, const String &Message)
 	GtkWidget *Dialog = gtk_message_dialog_new(
 		GTK_WINDOW(Window),
 		GTK_DIALOG_MODAL, GTK_MESSAGE_QUESTION, GTK_BUTTONS_YES_NO,
-		Title.c_str());
-	gtk_message_dialog_format_secondary_text(GTK_MESSAGE_DIALOG(Dialog), Message.c_str());
+		"%s", Title.c_str());
+	gtk_message_dialog_format_secondary_text(GTK_MESSAGE_DIALOG(Dialog), "%s", Message.c_str());
 	int Result = gtk_dialog_run(GTK_DIALOG(Dialog));
 	gtk_widget_destroy(Dialog);
 
@@ -234,17 +234,14 @@ void Slider::SetValue(float NewValue)
 
 void Slider::HandleChangeSliderPosition(GtkWidget *Widget, Slider *This)
 {
-	StringStream LabelRenderedText;
-	LabelRenderedText << std::setprecision(4) << This->GetValue();
-	gtk_entry_set_text(GTK_ENTRY(This->Value), LabelRenderedText.str().c_str());
+	gtk_entry_set_text(GTK_ENTRY(This->Value), ((String)(MemoryStream() << OutputStream::Float(This->GetValue()).MaxFractionalDigits(4))).c_str());
 }
 
 void Slider::HandleChangeEntryText(GtkWidget *Widget, Slider *This)
 {
 	g_signal_handler_block(This->Data, This->SliderHandlerID);
-	StringStream EntryText(gtk_entry_get_text(GTK_ENTRY(This->Value)));
 	float NewValue;
-	EntryText >> NewValue;
+	MemoryStream(gtk_entry_get_text(GTK_ENTRY(This->Value))) >> NewValue;
 	This->SetValue(NewValue);
 	g_signal_handler_unblock(This->Data, This->SliderHandlerID);
 }

@@ -3,7 +3,7 @@
 #ifndef cursorstate_h
 #define cursorstate_h
 
-#include <ren-general/vector.h>
+#include "ren-general/vector.h"
 
 #include "settings.h"
 

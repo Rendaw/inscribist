@@ -1,11 +1,49 @@
-COMPILEFLAGS = -std=c++0x -Wall -pedantic -Wno-long-long @(INCLUDEDIRECTORIES) @(CFLAGS) -I@(ROOT)
-ifeq (@(DEBUG),true)
-	COMPILEFLAGS += -ggdb -O0
-else
-	COMPILEFLAGS += -O3 -DNDEBUG
-endif
+StripPath = function(Filename)
+	return string.gsub(Filename, '[^/]*/', '')
+end
 
-!object = |> @(COMPILER) $(COMPILEFLAGS) -c %f -o %o |> %o
-!executable = |> @(COMPILER) $(COMPILEFLAGS) @(LIBDIRECTORIES) %f @(LIBRARIES) -o %o |> %o
-!lightarchive = |> ar rsT %o %f |> %o
+NormalizeSlashes = function(Filename)
+	return string.gsub(Filename, '\\', '/')
+end
+
+CompileFlags = '-std=gnu++11 -Wall -pedantic ' .. tup.getconfig('CFLAGS') .. ' -I' .. NormalizeSlashes(tup.getcwd()) .. ' -DREVISION=' .. tup.getconfig('VERSION') .. ' -DDATALOCATION=\\"' .. tup.getconfig('DATADIRECTORY') .. '\\" ' .. tup.getconfig('INCLUDEDIRECTORIES')
+LinkFlags = '-Wall -pedantic ' .. tup.getconfig('LINKDIRECTORIES')
+LinkLibraries = tup.getconfig('LINKFLAGS')
+if tup.getconfig('DEBUG') == 'true'
+then
+	CompileFlags = CompileFlags .. ' -ggdb -O0'
+	LinkFlags = LinkFlags .. ' -ggdb -O0'
+else
+	CompileFlags = CompileFlags .. ' -O3 -DNDEBUG'
+end
+if tup.getconfig('PLATFORM') == 'windows'
+then
+	CompileFlags = CompileFlags .. ' -DWINDOWS'
+end
+
+CommandPrefix = ''
+CommandSuffix = ''
+if tup.getconfig('TUP_PLATFORM') == 'win32'
+then
+	CommandPrefix = 'bash -c \''
+	CommandSuffix = '\''
+end
+
+Rule = 
+{
+	Object = function(Input)
+		local Output = StripPath(Input) .. '.o'
+		tup.definerule{
+			inputs = {Input},
+			outputs = {Output},
+			command = CommandPrefix .. tup.getconfig('COMPILER') .. ' ' .. CompileFlags .. ' -c ' .. Input .. ' -o ' .. Output .. CommandSuffix} 
+		return Output
+	end,
+	Executable = function(Inputs, Output)
+		tup.definerule{
+			inputs = Inputs,
+			outputs = {Output},
+			command = CommandPrefix .. tup.getconfig('COMPILER') .. ' ' .. LinkFlags .. ' ' .. table.concat(Inputs, ' ') .. ' ' .. LinkLibraries .. ' -o ' .. Output .. CommandSuffix}
+	end,
+}
 

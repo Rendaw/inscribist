@@ -8,8 +8,8 @@
 #include <cassert>
 #include <cmath>
 
-#include <ren-general/vector.h>
-#include <ren-general/range.h>
+#include "ren-general/vector.h"
+#include "ren-general/range.h"
 
 #include "gtkwrapper.h"
 #include "image.h"
@@ -727,10 +727,8 @@ int main(int ArgumentCount, char **Arguments)
 
 	if (ArgumentCount > 4)
 	{
-		StringStream WidthStream(Arguments[2]);
-		WidthStream >> Settings.ImageSize[0];
-		StringStream HeightStream(Arguments[3]);
-		HeightStream >> Settings.ImageSize[1];
+		MemoryStream(Arguments[2]) >> Settings.ImageSize[0];
+		MemoryStream(Arguments[3]) >> Settings.ImageSize[1];
 		std::cout << "If creating a new file, use size " << Settings.ImageSize.AsString() << std::endl;
 	}
 

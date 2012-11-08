@@ -1,46 +1,30 @@
-# Copyright 2011 Rendaw, under the FreeBSD license (See included LICENSE.txt)
-#
-# Make sure tup.config exists for config variables. It should be created by configure.sh
+tup.dorulesfile()
+tup.dofile '../ren-general/build/files.tup'
+tup.dofile '../ren-script/build/files.tup'
+tup.dofile '../ren-application/build/files.tup'
 
-include_rules
+Sources = 
+{
+	'../main.cxx',
+	'../settingsdialog.cxx',
+	'../settings.cxx',
+	'../cursorstate.cxx',
+	'../image.cxx',
+	'../gtkwrapper.cxx',
+}
 
-# Organizing flags and such
-COMPILEFLAGS += -D REVISION=@(VERSION) -D DATALOCATION=\"@(DATADIRECTORY)\"
-
-# Applying settings (as possible) to flags
-ifeq (@(ENV_PLATFORM),windows)
-	COMPILEFLAGS += -DWINDOWS
-	BINEXTENSION = .exe
-endif
-ifeq (@(ENV_PLATFORM),linux)
-	COMPILEFLAGS += -DLINUX
-endif
-
-# Compilation
-GENERAL_SOURCES = \
-	../ren-general/color.cxx \
-	../ren-general/range.cxx \
-	../ren-general/region.cxx \
-	../ren-general/rotation.cxx \
-	../ren-general/vector.cxx \
-	../ren-general/filesystem.cxx \
-	../ren-general/exception.cxx
-APPLICATION_SOURCES = \
-	../ren-application/lightsettings.cxx \
-	../ren-application/stringtable.cxx
-SCRIPT_SOURCES = \
-	../ren-script/script.cxx \
-	../ren-script/databuilder.cxx
-INSCRIBIST_SOURCES = \
-	../main.cxx \
-	../settingsdialog.cxx \
-	../settings.cxx \
-	../cursorstate.cxx \
-	../image.cxx \
-	../gtkwrapper.cxx
-
-SOURCES = $(APPLICATION_SOURCES) $(SCRIPT_SOURCES) $(GENERAL_SOURCES) $(INSCRIBIST_SOURCES)
-
-: foreach $(SOURCES) |> !object |> %B.o {objects}
-: {objects} |> !executable |> inscribist$(BINEXTENSION)
+Objects = {}
+for Index, Source in ipairs(Sources)
+do
+	table.insert(Objects, Rule.Object(Source))
+end
+for Index, Object in ipairs(RenGeneralObjects) do table.insert(Objects, Object) end
+for Index, Object in ipairs(RenScriptObjects) do table.insert(Objects, Object) end
+for Index, Object in ipairs(RenApplicationObjects) do table.insert(Objects, Object) end
+if tup.getconfig('PLATFORM') == 'windows'
+then
+	Rule.Executable(Objects, 'inscribist.exe')
+else
+	Rule.Executable(Objects, 'inscribist')
+end
 
