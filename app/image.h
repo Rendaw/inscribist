@@ -11,6 +11,33 @@
 
 class UndoLevel;
 
+class Change
+{
+	public:
+		enum class CombineResult
+		{
+			Fail,
+			Nullify,
+			Combine
+		};
+
+		virtual ~Change(void);
+		virtual Change *Apply(bool &FlippedHorizontally, bool &FlippedVertically) = 0; // Returns undo change for this change
+		virtual CombineResult Combine(Change *Other) = 0;
+};
+
+class ChangeManager
+{
+	public:
+		void AddUndo(Change *Undo);
+		bool CanUndo(void);
+		void Undo(bool &FlippedHorizontally, bool &FlippedVertically);
+		bool CanRedo(void);
+		void Redo(bool &FlippedHorizontally, bool &FlippedVertically);
+	private:
+		DeleterStack<Change> Undos, Redos;
+};
+
 struct RunData
 {
 	public:
@@ -28,50 +55,40 @@ struct RunData
 			const unsigned int XStart, const unsigned int XEnd, const unsigned int Y, const unsigned int Scale);
 		void FlipVertically(void);
 		void FlipHorizontally(void);
-
-		// Undo management
-		bool IsUndoEmpty(void);
-		void Undo(bool &FlippedHorizontally, bool &FlippedVertically);
-		void Redo(bool &FlippedHorizontally, bool &FlippedVertically);
-		void PushUndo(void);
-
-	protected:
-		friend class UndoLevel;
-		void InternalFlipVertically(void);
-		void InternalFlipHorizontally(void);
-
-	private:
-		UndoLevel *CurrentUndo;
-		std::deque<UndoLevel *> UndoLevels, RedoLevels;
 };
 
-class UndoLevel
+class Mark : public Change
 {
 	public:
-		UndoLevel(unsigned int const &RowCount);
-		~UndoLevel(void);
-
-		bool IsClean(void)
-			{ return Clean; }
-
-		void CopyFrom(RunData &Source, UndoLevel &Matching);
-
-		void AddLine(RunData &Source, unsigned int const &LineNumber);
-		void SetHorizontal(void);
-		void SetVertical(void);
-
-		void Apply(RunData &Destination, bool &OutFlippedHorizontally, bool &OutFlippedVertically);
-
+		Mark(RunData &Base);
+		Change *Apply(bool &FlippedHorizontally, bool &FlippedVertically);
+		CombineResult Combine(Change *Other);
+		
+		void AddLine(unsigned int const &LineNumber);
 	private:
-		bool Clean;
-
-		// Flip undo
-		bool FlippedHorizontally;
-		bool FlippedVertically;
-
-		// Pixel undo
-		unsigned int const RowCount;
+		RunData &Base;
 		RunData::Row *Rows;
+		const unsigned int RowCount; // Sanity check, technically not necessary
+};
+
+class HorizontalFlip : public Change
+{
+	public:
+		HorizontalFlip(RunData &Base);
+		Change *Apply(bool &FlippedHorizontally, bool &FlippedVertically);
+		CombineResult Combine(Change *Other);
+	private:
+		RunData &Base;
+};
+
+class VerticalFlip : public Change
+{
+	public:
+		VerticalFlip(RunData &Base);
+		Change *Apply(bool &FlippedHorizontally, bool &FlippedVertically);
+		CombineResult Combine(Change *Other);
+	private:
+		RunData &Base;
 };
 
 class Image
@@ -85,6 +102,7 @@ class Image
 		bool Export(String const &Filename);
 
 		Region Mark(CursorState const &Start, CursorState const &End, bool const &Black);
+		void FinishMark(void);
 		bool Render(Region const &Invalid, cairo_t *Destination);
 
 		int Zoom(int Amount);
@@ -94,12 +112,13 @@ class Image
 		void FlipVertically(void);
 
 		bool HasChanges(void);
-		void PushUndo(void);
 		void Undo(bool &FlippedHorizontally, bool &FlippedVertically);
 		void Redo(bool &FlippedHorizontally, bool &FlippedVertically);
 
 	private:
 		SettingsData &Settings;
+
+		void Operate(std::function<void(void)> &&Operation);
 
 		bool RenderInternal(Region const &Invalid, cairo_t *Destination, int Scale,
 			Color const &Foreground, Color const &Background);
@@ -109,6 +128,8 @@ class Image
 		Region DisplaySpace;
 
 		RunData *Data;
+		ChangeManager Changes;
+		Anchor< ::Mark> CurrentMarkUndo;
 
 		bool ModifiedSinceSave;
 };

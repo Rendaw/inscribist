@@ -11,13 +11,52 @@
 
 #include "localization.h"
 
-unsigned int const MaxUndoLevels = 25;
+Change::~Change(void) {}
+		
+void ChangeManager::AddUndo(Change *Undo)
+{
+	while (!Redos.empty())
+		Redos.pop();
+	Change::CombineResult CombineResult;
+	if (!CanUndo() || ((CombineResult = Undos.top()->Combine(Undo)) == Change::CombineResult::Fail))
+	{
+		Undos.push(Undo);
+		return;
+	}
+	switch (CombineResult)
+	{
+		case Change::CombineResult::Nullify:
+			Undos.pop();
+			delete Undo;
+			break;
+		case Change::CombineResult::Combine:
+			delete Undo;
+		default: assert(false); break;
+	}
+}
+
+bool ChangeManager::CanUndo(void) { return !Undos.empty(); }
+
+void ChangeManager::Undo(bool &FlippedHorizontally, bool &FlippedVertically)
+{
+	assert(CanUndo());
+	Redos.push(Undos.top()->Apply(FlippedHorizontally, FlippedVertically));
+	Undos.pop();
+}
+
+bool ChangeManager::CanRedo(void) { return !Redos.empty(); }
+
+void ChangeManager::Redo(bool &FlippedHorizontally, bool &FlippedVertically)
+{
+	assert(CanRedo());
+	Undos.push(Redos.top()->Apply(FlippedHorizontally, FlippedVertically));
+	Redos.pop();
+}
 
 //////////////////////////////////////////////////////////////////////////////////////////
 // RLE data methods and storage
 RunData::RunData(const FlatVector &Size) :
-	RowCount(Size[1]), Width(std::max(Size[0], 1.0f)), Rows(new Row[RowCount]),
-	CurrentUndo(new UndoLevel(RowCount))
+	RowCount(Size[1]), Width(std::max(Size[0], 1.0f)), Rows(new Row[RowCount])
 {
 	for (unsigned int CurrentRow = 0; CurrentRow < RowCount; CurrentRow++)
 	{
@@ -34,20 +73,6 @@ RunData::~RunData(void)
 	for (unsigned int CurrentRow = 0; CurrentRow < RowCount; CurrentRow++)
 		delete [] Rows[CurrentRow].Runs;
 	delete [] Rows;
-
-	// Clean up undo data
-	delete CurrentUndo;
-	while (!UndoLevels.empty())
-	{
-		delete UndoLevels.front();
-		UndoLevels.pop_front();
-	}
-
-	while (!RedoLevels.empty())
-	{
-		delete RedoLevels.front();
-		RedoLevels.pop_front();
-	}
 }
 
 void RunData::Line(int UnclippedLeft, int UnclippedRight, int const Y, bool Black)
@@ -60,16 +85,6 @@ void RunData::Line(int UnclippedLeft, int UnclippedRight, int const Y, bool Blac
 	unsigned int const Left = std::min((unsigned int)RangeD(0, Right).Constrain(UnclippedLeft), Width - 1);
 
 	if (Left == Right) return;
-
-	// Now we know we'll me modifying the data (more or less) so save the original image data to the undo buffer
-	if (CurrentUndo->IsClean())
-		while (!RedoLevels.empty())
-		{
-			delete RedoLevels.front();
-			RedoLevels.pop_front();
-		}
-
-	CurrentUndo->AddLine(*this, Y);
 
 	// Create new row data
 	// We'll add at most one run (white black sequence) to the row, so this may waste a run
@@ -414,76 +429,6 @@ void RunData::Combine(unsigned int *Buffer, unsigned int const BufferWidth,
 
 void RunData::FlipVertically(void)
 {
-	// Save the undo information
-	if (!CurrentUndo->IsClean())
-		PushUndo();
-	CurrentUndo->SetVertical();
-	PushUndo();
-
-	// Do the flip
-	InternalFlipVertically();
-}
-
-void RunData::FlipHorizontally(void)
-{
-	// Save the undo information
-	if (!CurrentUndo->IsClean())
-		PushUndo();
-	CurrentUndo->SetHorizontal();
-	PushUndo();
-
-	// Do the flip
-	InternalFlipHorizontally();
-}
-
-bool RunData::IsUndoEmpty(void)
-	{ return UndoLevels.empty(); }
-
-void RunData::Undo(bool &FlippedHorizontally, bool &FlippedVertically)
-{
-	if (!CurrentUndo->IsClean())
-		PushUndo();
-
-	if (UndoLevels.empty()) return;
-
-	RedoLevels.push_back(new UndoLevel(RowCount));
-	RedoLevels.back()->CopyFrom(*this, *UndoLevels.back());
-	UndoLevels.back()->Apply(*this, FlippedHorizontally, FlippedVertically);
-	delete UndoLevels.back();
-	UndoLevels.pop_back();
-}
-
-void RunData::Redo(bool &FlippedHorizontally, bool &FlippedVertically)
-{
-	assert(!(!CurrentUndo->IsClean() && !RedoLevels.empty()));
-
-	if (RedoLevels.empty()) return;
-
-	UndoLevels.push_back(new UndoLevel(RowCount));
-	UndoLevels.back()->CopyFrom(*this, *RedoLevels.back());
-	RedoLevels.back()->Apply(*this, FlippedHorizontally, FlippedVertically);
-	delete RedoLevels.back();
-	RedoLevels.pop_back();
-}
-
-void RunData::PushUndo(void)
-{
-	//assert(!CurrentUndo->IsClean());
-	if (CurrentUndo->IsClean()) return;
-
-	UndoLevels.push_back(CurrentUndo);
-	CurrentUndo = new UndoLevel(RowCount);
-
-	if (UndoLevels.size() > MaxUndoLevels)
-	{
-		delete UndoLevels.front();
-		UndoLevels.pop_front();
-	}
-	assert(UndoLevels.size() <= MaxUndoLevels);
-}
-
-void RunData::InternalFlipVertically(void)
-{
 	for (unsigned int CurrentRow = 0; CurrentRow < RowCount / 2; CurrentRow++)
 	{
 		Row Temp = Rows[CurrentRow];
@@ -492,7 +437,7 @@ void RunData::InternalFlipVertically(void)
 	}
 }
 
-void RunData::InternalFlipHorizontally(void)
+void RunData::FlipHorizontally(void)
 {
 	for (unsigned int CurrentRow = 0; CurrentRow < RowCount; CurrentRow++)
 	{
@@ -545,111 +490,28 @@ void RunData::InternalFlipHorizontally(void)
 
 //////////////////////////////////////////////////////////////////////////////////////////
 // Undo levels
-UndoLevel::UndoLevel(unsigned int const &RowCount) :
-	Clean(true), FlippedHorizontally(false), FlippedVertically(false), RowCount(RowCount), Rows(NULL)
-	{}
 
-UndoLevel::~UndoLevel(void)
+Mark::Mark(RunData &Base) : Base(Base), RowCount(Base.RowCount)
 {
-	if (Rows == NULL) return;
-
-	for (unsigned int CurrentRow = 0; CurrentRow < RowCount; CurrentRow++)
-		delete [] Rows[CurrentRow].Runs;
-	delete [] Rows;
+	assert(RowCount == Base.RowCount);
+	Rows = new RunData::Row[RowCount];
+	memset(Rows, 0, sizeof(RunData::Row) * RowCount);
 }
 
-void UndoLevel::CopyFrom(RunData &Source, UndoLevel &Matching)
+Change *Mark::Apply(bool &FlippedHorizontally, bool &FlippedVertically)
 {
-	assert(Clean);
-	assert(!Matching.Clean);
-	assert(RowCount == Matching.RowCount);
-	assert(RowCount == Source.RowCount);
-
-	if (Matching.FlippedHorizontally)
-		FlippedHorizontally = true;
-
-	if (Matching.FlippedVertically)
-		FlippedVertically = true;
-
-	if (Matching.Rows != NULL)
-		for (unsigned int CurrentRow = 0; CurrentRow < RowCount; CurrentRow++)
-			if (Matching.Rows[CurrentRow].Runs != NULL) AddLine(Source, CurrentRow);
-
-	Clean = false;
-}
-
-void UndoLevel::AddLine(RunData &Source, unsigned int const &LineNumber)
-{
-	assert(LineNumber < Source.RowCount);
-	assert(LineNumber < RowCount);
-
-	// Initialize the pixel undo data if this undo data hasn't yet been touched
-	if (Clean)
-	{
-		assert(!FlippedHorizontally);
-		assert(!FlippedVertically);
-		assert(Rows == NULL);
-
-		Rows = new RunData::Row[RowCount];
-		memset(Rows, 0, sizeof(RunData::Row) * RowCount);
-
-		Clean = false;
-	}
-
-	// Only add lines if they haven't already been added at this undo level (keep the state at the beginning of the undo)
-	if (Rows[LineNumber].Runs != NULL) return;
-
-	RunData::Row &CurrentRow = Rows[LineNumber];
-	RunData::Row const &SourceRow = Source.Rows[LineNumber];
-
-	CurrentRow.RunCount = SourceRow.RunCount;
-	CurrentRow.Runs = new RunData::Run[CurrentRow.RunCount];
-	memcpy(CurrentRow.Runs, SourceRow.Runs, sizeof(RunData::Run) * CurrentRow.RunCount);
-}
-
-void UndoLevel::SetHorizontal(void)
-{
-	assert(Clean);
-	FlippedHorizontally = true;
-	Clean = false;
-}
-
-void UndoLevel::SetVertical(void)
-{
-	assert(Clean);
-	FlippedVertically = true;
-	Clean = false;
-}
-
-void UndoLevel::Apply(RunData &Destination, bool &OutFlippedHorizontally, bool &OutFlippedVertically)
-{
-	assert(!Clean);
-
-	OutFlippedHorizontally = false;
-	OutFlippedVertically = false;
-
-	if (FlippedHorizontally)
-	{
-		// The internal function bypasses undo writing (don't modify the undo as we apply)
-		OutFlippedHorizontally = true;
-		Destination.InternalFlipHorizontally();
-		return;
-	}
-
-	if (FlippedVertically)
-	{
-		OutFlippedVertically = true;
-		Destination.InternalFlipVertically();
-		return;
-	}
-
-	assert(RowCount == Destination.RowCount);
-	assert(Rows != NULL);
-	for (unsigned int CurrentRow = 0; CurrentRow < RowCount; CurrentRow++)
-		if (Rows[CurrentRow].Runs != NULL)
+	assert(RowCount == Base.RowCount);
+	FlippedHorizontally = false;
+	FlippedVertically = false;
+	Mark *Out = new Mark(Base);
+	
+	for (unsigned int CurrentRow = 0; CurrentRow < RowCount; ++CurrentRow)
+		if (Rows[CurrentRow].Runs != nullptr)
 		{
+			Out->AddLine(CurrentRow);
+
 			RunData::Row const &SourceRow = Rows[CurrentRow];
-			RunData::Row &DestinationRow = Destination.Rows[CurrentRow];
+			RunData::Row &DestinationRow = Base.Rows[CurrentRow];
 
 			delete [] DestinationRow.Runs;
 			DestinationRow.RunCount = SourceRow.RunCount;
@@ -657,6 +519,60 @@ void UndoLevel::Apply(RunData &Destination, bool &OutFlippedHorizontally, bool &
 
 			memcpy(DestinationRow.Runs, SourceRow.Runs, sizeof(RunData::Run) * SourceRow.RunCount);
 		}
+
+	return Out;
+}
+
+Change::CombineResult Mark::Combine(Change *Other) { return Change::CombineResult::Fail; }
+
+void Mark::AddLine(unsigned int const &LineNumber)
+{
+	assert(LineNumber < Base.RowCount);
+	assert(LineNumber < RowCount);
+
+	// Only add lines if they haven't already been added at this undo level (keep the state at the beginning of the undo)
+	if (Rows[LineNumber].Runs != nullptr) return;
+
+	RunData::Row &CurrentRow = Rows[LineNumber];
+	RunData::Row const &SourceRow = Base.Rows[LineNumber];
+
+	CurrentRow.RunCount = SourceRow.RunCount;
+	CurrentRow.Runs = new RunData::Run[CurrentRow.RunCount];
+	memcpy(CurrentRow.Runs, SourceRow.Runs, sizeof(RunData::Run) * CurrentRow.RunCount);
+}
+
+HorizontalFlip::HorizontalFlip(RunData &Base) : Base(Base) { }
+
+Change *HorizontalFlip::Apply(bool &FlippedHorizontally, bool &FlippedVertically)
+{
+	FlippedHorizontally = true;
+	FlippedVertically = false;
+	Base.FlipHorizontally();
+	return new HorizontalFlip(Base);
+}
+
+Change::CombineResult HorizontalFlip::Combine(Change *Other) 
+{ 
+	if (typeid(*this) == typeid(*Other))
+		return Change::CombineResult::Nullify;
+	return Change::CombineResult::Fail;
+}
+
+VerticalFlip::VerticalFlip(RunData &Base) : Base(Base) { }
+
+Change *VerticalFlip::Apply(bool &FlippedHorizontally, bool &FlippedVertically)
+{
+	FlippedHorizontally = true;
+	FlippedVertically = false;
+	Base.FlipVertically();
+	return new VerticalFlip(Base);
+}
+
+Change::CombineResult VerticalFlip::Combine(Change *Other) 
+{ 
+	if (typeid(*this) == typeid(*Other))
+		return Change::CombineResult::Nullify;
+	return Change::CombineResult::Fail;
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////
@@ -665,18 +581,18 @@ Image::Image(SettingsData &Settings) :
 	Settings(Settings),
 	ImageSpace(FlatVector(), Settings.ImageSize), PixelsBelow(Settings.DisplayScale),
 	DisplaySpace(FlatVector(), ImageSpace.Size / (float)PixelsBelow),
-	Data(new RunData(ImageSpace.Size)), ModifiedSinceSave(false)
+	Data(new RunData(ImageSpace.Size)), CurrentMarkUndo(nullptr), ModifiedSinceSave(false)
 	{}
 
 Image::Image(SettingsData &Settings, String const &Filename) :
 	Settings(Settings),
 	ImageSpace(FlatVector(), Settings.ImageSize), PixelsBelow(Settings.DisplayScale),
 	DisplaySpace(FlatVector(), ImageSpace.Size / (float)PixelsBelow),
-	Data(NULL), ModifiedSinceSave(false)
+	Data(nullptr), CurrentMarkUndo(nullptr), ModifiedSinceSave(false)
 {
 	/// Open the file
 	FILE *Input = fopen(Filename.c_str(), "rb");
-	if (Input == NULL)
+	if (Input == nullptr)
 	{
 		Data = new RunData(ImageSpace.Size);
 		return;
@@ -706,7 +622,7 @@ Image::Image(SettingsData &Settings, String const &Filename) :
 
 	/// Prepare reading the bz2 data
 	int Error;
-	BZFILE *CompressInput = BZ2_bzReadOpen(&Error, Input, 0, 0, NULL, 0);
+	BZFILE *CompressInput = BZ2_bzReadOpen(&Error, Input, 0, 0, nullptr, 0);
 	if (Error != BZ_OK)
 	{
 		if (Error == BZ_IO_ERROR) std::cerr << Local("bz2 noticed the file had an error after being opened: ") << Filename << std::endl;
@@ -761,7 +677,7 @@ bool Image::Save(String const &Filename)
 {
 	/// Open the file
 	FILE *Output = fopen(Filename.c_str(), "wb");
-	if (Output == NULL)
+	if (Output == nullptr)
 	{
 		std::cerr << Local("Could not open for writing: ") << Filename << std::endl;
 		return false;
@@ -781,7 +697,7 @@ bool Image::Save(String const &Filename)
 	{
 		if (Error == BZ_IO_ERROR) std::cerr << Local("bz2 noticed the file had an error after being opened: ") << Filename << std::endl;
 		if (Error == BZ_MEM_ERROR) std::cerr << Local("bz2 ran out of memory when opening file for writing: ") << Filename << std::endl;
-		BZ2_bzWriteClose(&Error, CompressOutput, 0, NULL, NULL);
+		BZ2_bzWriteClose(&Error, CompressOutput, 0, nullptr, nullptr);
 		fclose(Output);
 		return false;
 	}
@@ -813,7 +729,7 @@ bool Image::Save(String const &Filename)
 	}
 
 	/// Close everything
-	BZ2_bzWriteClose(&Error, CompressOutput, 0, NULL, NULL);
+	BZ2_bzWriteClose(&Error, CompressOutput, 0, nullptr, nullptr);
 	fclose(Output);
 
 	ModifiedSinceSave = false;
@@ -976,6 +892,14 @@ Region Image::Mark(CursorState const &Start, CursorState const &End, bool const 
 		CapHorizontalMax = std::max(FromCap.Center[0] + FromCap.Radius, ToCap.Center[0] + ToCap.Radius);
 
 	/// Do the drawing
+	if (CurrentMarkUndo == nullptr)
+		CurrentMarkUndo = new ::Mark(*Data);
+	auto const Line = [&](int Left, int Right, int Row, bool Black)
+	{
+		CurrentMarkUndo->AddLine(Row);
+		Data->Line(Left, Right, Row, Black);
+	};
+
 	for (int CurrentRow = CapBelowStart; CurrentRow < LineBottom; CurrentRow++)
 	{
 		int Left = CapHorizontalMax,
@@ -984,7 +908,7 @@ Region Image::Mark(CursorState const &Start, CursorState const &End, bool const 
 		FromCap.ExpandMarkBounds(Left, Right, CurrentRow);
 		ToCap.ExpandMarkBounds(Left, Right, CurrentRow);
 
-		Data->Line(Left, Right, CurrentRow, Black);
+		Line(Left, Right, CurrentRow, Black);
 	}
 
 	float Line1Position = Line1.StartHorizontalPosition,
@@ -1000,7 +924,7 @@ Region Image::Mark(CursorState const &Start, CursorState const &End, bool const 
 		ToCap.ExpandMarkBounds(Left, Right, CurrentRow);
 
 		assert(Left <= Right);
-		Data->Line(Left, Right, CurrentRow, Black);
+		Line(Left, Right, CurrentRow, Black);
 	}
 
 	for (int CurrentRow = LineTop; CurrentRow < CapAboveEnd; CurrentRow++)
@@ -1011,7 +935,7 @@ Region Image::Mark(CursorState const &Start, CursorState const &End, bool const 
 		FromCap.ExpandMarkBounds(Left, Right, CurrentRow);
 		ToCap.ExpandMarkBounds(Left, Right, CurrentRow);
 
-		Data->Line(Left, Right, CurrentRow, Black);
+		Line(Left, Right, CurrentRow, Black);
 	}
 
 	ModifiedSinceSave = true;
@@ -1026,6 +950,15 @@ Region Image::Mark(CursorState const &Start, CursorState const &End, bool const 
 				fabs(Difference[0]) + Start.Radius + End.Radius,
 				fabs(Difference[1]) + Start.Radius + End.Radius)),
 		DisplaySpace);
+}
+
+void Image::FinishMark(void)
+{
+	if (CurrentMarkUndo != nullptr)
+	{
+		Changes.AddUndo(CurrentMarkUndo);
+		CurrentMarkUndo = nullptr;
+	}
 }
 
 bool Image::Render(Region const &Invalid, cairo_t *Destination)
@@ -1046,22 +979,27 @@ FlatVector &Image::GetDisplaySize(void)
 	{ return DisplaySpace.Size; }
 
 void Image::FlipHorizontally(void)
-	{ Data->FlipHorizontally(); ModifiedSinceSave = true; }
+{
+	FinishMark();
+	Data->FlipHorizontally(); 
+	ModifiedSinceSave = true; 
+}
 
 void Image::FlipVertically(void)
-	{ Data->FlipVertically(); ModifiedSinceSave = true; }
+{ 
+	FinishMark();
+	Data->FlipVertically(); 
+	ModifiedSinceSave = true; 
+}
 
 bool Image::HasChanges(void)
-	{ return !Data->IsUndoEmpty() && ModifiedSinceSave; }
-
-void Image::PushUndo(void)
-	{ Data->PushUndo(); }
+	{ return Changes.CanUndo() && ModifiedSinceSave; }
 
 void Image::Undo(bool &FlippedHorizontally, bool &FlippedVertically)
-	{ Data->Undo(FlippedHorizontally, FlippedVertically); }
+	{ if (Changes.CanUndo()) Changes.Undo(FlippedHorizontally, FlippedVertically); }
 
 void Image::Redo(bool &FlippedHorizontally, bool &FlippedVertically)
-	{ Data->Redo(FlippedHorizontally, FlippedVertically); }
+	{ if (Changes.CanRedo()) Changes.Redo(FlippedHorizontally, FlippedVertically); }
 
 bool Image::RenderInternal(Region const &Invalid, cairo_t *Destination, int Scale,
 	Color const &Foreground, Color const &Background)

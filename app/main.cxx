@@ -260,7 +260,7 @@ class MainWindow : public ActionHandler
 			UpdateState(State, FlatVector(Event->x, Event->y), Event->device);
 
 			if (State.Mode == CursorState::mMarking)
-				Sketcher->PushUndo();
+				Sketcher->FinishMark();
 			State.Mode = CursorState::mFree;
 		}
 
