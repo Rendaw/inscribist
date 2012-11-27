@@ -427,15 +427,7 @@ void RunData::Combine(unsigned int *Buffer, unsigned int const BufferWidth,
 	}
 }
 
-void RunData::FlipVertically(void)
-{
-	for (unsigned int CurrentRow = 0; CurrentRow < RowCount / 2; CurrentRow++)
-	{
-		Row Temp = Rows[CurrentRow];
-		Rows[CurrentRow] = Rows[RowCount - CurrentRow - 1];
-		Rows[RowCount - CurrentRow - 1] = Temp;
-	}
-}
+void RunData::FlipVertically(void) { RotateVertically(0, RowCount); }
 
 void RunData::FlipHorizontally(void)
 {
@@ -485,6 +477,39 @@ void RunData::FlipHorizontally(void)
 
 		/// Delete the old data
 		delete [] OldRuns;
+	}
+}
+
+void RunData::ShiftHorizontally(int Columns)
+{
+	/*unsigned int const Split = Columns % Width;
+	for (unsigned int CurrentRow = 0; CurrentRow < RowCount; CurrentRow++)
+	{
+		Run *OldRuns = Rows[CurrentRow].Runs;
+		unsigned int const OldRunCount = Rows[CurrentRow].RunCount;
+	}*/
+}
+
+void RunData::ShiftVertically(int Rows)
+{
+	unsigned int const Split = Rows % RowCount;
+	Reverse(0, Split);
+	Reverse(Split, RowCount);
+	Reverse(0, RowCount);
+}
+		
+void RunData::ReverseVertically(unsigned int const Start, unsigned int const End)
+{
+	assert(Start <= RowCount);
+	assert(End <= RowCount);
+	assert(Start <= End);
+
+	int Half = (Start + End) / 2;
+	for (unsigned int CurrentRow = Start; CurrentRow < Half; ++CurrentRow)
+	{
+		Row Temp = Rows[CurrentRow];
+		Rows[CurrentRow] = Rows[End - CurrentRow - 1];
+		Rows[End - CurrentRow - 1] = Temp;
 	}
 }
 

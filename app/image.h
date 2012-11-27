@@ -55,6 +55,10 @@ struct RunData
 			const unsigned int XStart, const unsigned int XEnd, const unsigned int Y, const unsigned int Scale);
 		void FlipVertically(void);
 		void FlipHorizontally(void);
+		void ShiftHorizontally(int Columns);
+		void ShiftVertically(int Rows);
+	private:
+		void ReverseVertically(int Start, int Count);
 };
 
 class Mark : public Change
@@ -89,6 +93,17 @@ class VerticalFlip : public Change
 		CombineResult Combine(Change *Other);
 	private:
 		RunData &Base;
+};
+
+class Shift : public Change
+{
+	public:
+		Shift(RunData &Base);
+		Change *Apply(bool &FlippedHorizontally, bool &FlippedVertically);
+		CombineResult Combine(Change *Other);
+	private:
+		RunData &Base;
+		int Right, Down;
 };
 
 class Image
