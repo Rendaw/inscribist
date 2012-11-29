@@ -43,22 +43,26 @@ struct RunData
 	public:
 		unsigned int const RowCount;
 		unsigned int const Width;
-		struct Run { unsigned int WhiteLength, BlackLength; /* White followed by black */ };
+		typedef unsigned int Run; // Each row starts with white (first run is white)
 		struct Row { unsigned int RunCount; Run *Runs; } *Rows;
 
 		RunData(const FlatVector &Size);
 		~RunData(void);
 
-		// Manipulation
+		/// Manipulation
 		void Line(int Left, int Right, int const Y, bool Black);
+
+		// Places counts black pixels in Buffer from 0 to BufferWidth
+		// Counts come from the row of pixels on screen at X, Y (scale Scale)
 		void Combine(unsigned int *Buffer,
-			const unsigned int XStart, const unsigned int XEnd, const unsigned int Y, const unsigned int Scale);
+			const unsigned int BufferWidth, const unsigned int X, const unsigned int Y, const unsigned int Scale);
 		void FlipVertically(void);
 		void FlipHorizontally(void);
 		void ShiftHorizontally(int Columns);
 		void ShiftVertically(int Rows);
 	private:
-		void ReverseVertically(int Start, int Count);
+		static bool IsBlack(unsigned int const &Index);
+		void FlipSubsectionVertically(unsigned int const &Start, unsigned int const &Count);
 };
 
 class Mark : public Change

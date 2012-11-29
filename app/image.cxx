@@ -62,8 +62,7 @@ RunData::RunData(const FlatVector &Size) :
 	{
 		Rows[CurrentRow].RunCount = 1;
 		Rows[CurrentRow].Runs = new Run[1];
-		Rows[CurrentRow].Runs[0].WhiteLength = Width;
-		Rows[CurrentRow].Runs[0].BlackLength = 0;
+		Rows[CurrentRow].Runs[0] = Width;
 	}
 }
 
@@ -87,246 +86,139 @@ void RunData::Line(int UnclippedLeft, int UnclippedRight, int const Y, bool Blac
 	if (Left == Right) return;
 
 	// Create new row data
-	// We'll add at most one run (white black sequence) to the row, so this may waste a run
+	// We'll add at most two runs to the row, so this may waste two runs
 	// but we'll clean it up next time we modify this row.
-	Run *OldRuns = Rows[Y].Runs;
-	unsigned int const OldRunCount = Rows[Y].RunCount;
-
-	unsigned int &RunCount = Rows[Y].RunCount;
-	RunCount = 0;
-	unsigned int const AllocatedRunCount = OldRunCount + 1;
-	Run *&Runs = Rows[Y].Runs = new Run[AllocatedRunCount];
-
-	// Do a one-pass re-rowing, and calculate the actually required row length at the same time
-	int SourcePosition = 0;
-	Run *Current = Runs;
-	Current->WhiteLength = 0;
-	Current->BlackLength = 0;
-
-	if (Black)
+	class NewRunManager
 	{
-		for (unsigned int OldRun = 0; OldRun < OldRunCount; OldRun++)
-		{
-			Run const &Source = OldRuns[OldRun];
+		public:
+			NewRunManager(RunData const &Base, unsigned int const &Y) : 
+				MaxCount(Base.Rows[Y].RunCount + 2), Count(0), 
+				NewRuns(new Run[MaxCount]), Current(NewRuns),
+				MaxWidth(Base.Width), Width(0)
+				{}
 
+			void Create(unsigned int Length)
 			{
-				// Handle coloring for the area that occupies the source white length
-				unsigned int const &SourceStart = SourcePosition;
-				unsigned int const SourceEnd = SourcePosition + Source.WhiteLength;
-
-				if ((Right <= SourceStart) || (Left >= SourceEnd))
-				{
-					// The mark is out of bounds of this white strip
-					Current->WhiteLength = Source.WhiteLength;
-				}
-				else if ((Left <= SourceStart) && (Right >= SourceEnd))
-				{
-					// The mark subsumes the white strip
-					Current->BlackLength += Source.WhiteLength;
-				}
-				else if (Right >= SourceEnd)
-				{
-					// The mark starts here and continues to the right
-					assert(Left > SourceStart);
-
-					Current->WhiteLength = Left - SourceStart;
-					Current->BlackLength = Source.WhiteLength - Current->WhiteLength;
-				}
-				else if (Left <= SourceStart)
-				{
-					// The mark started to the left and ends here
-					assert(Right < SourceEnd);
-
-					Current->BlackLength += Right - SourceStart;
-					Current++; RunCount++; assert(RunCount <= AllocatedRunCount);
-					Current->WhiteLength = SourceEnd - Right;
-				}
-				else
-				{
-					// The mark starts and stops in this white area
-					assert((Left > SourceStart) && (Right < SourceEnd));
-
-					Current->WhiteLength = Left - SourceStart;
-					Current->BlackLength = Right - Left;
-					Current++; RunCount++; assert(RunCount <= AllocatedRunCount);
-					Current->WhiteLength = SourceEnd - Right;
-				}
+				assert((Count == 0) || (Length > 0));
+				assert(Count < MaxCount);
+				*Current = Length;
+				++Current;
+				++Count;
+				assert(Width + Length <= MaxWidth);
+				Width += Length;
 			}
 
-			SourcePosition += Source.WhiteLength;
+			unsigned int Right(void) const { return Width; }
 
-			{
-				// Handle coloring for the area that occupies the source black length
-				// If the mark butts up to this section but isn't in it, consider it to be part of
-				// this section because the run lengths will run together.
-				unsigned int const &SourceStart = SourcePosition;
-				unsigned int const SourceEnd = SourceStart + Source.BlackLength;
+			Run *GetFinalRuns(void) { return NewRuns; }
 
-				if ((Right < SourceStart) || (Left > SourceEnd))
-				{
-					// The mark is out of bounds (and not touching), so just copy
-					Current->BlackLength = Source.BlackLength;
-					Current++; RunCount++; assert(RunCount <= AllocatedRunCount);
-				}
-				else if ((Left < SourceStart) && (Right > SourceEnd))
-				{
-					// The mark spans this black section
-					Current->BlackLength += Source.BlackLength;
-				}
-				else if (Right > SourceEnd)
-				{
-					// The mark starts here and continues to the right
-					assert(Left >= SourceStart);
+			unsigned int GetFinalCount(void) { assert(Count >= 1); return Count; }
+		private:
+			unsigned int const &MaxCount;
+			unsigned int Count;
+			Run *NewRuns, *Current;
+			unsigned int const &MaxWidth;
+			unsigned int Width;
+	} NewRuns(*this, Y);
 
-					Current->BlackLength = Source.BlackLength;
-				}
-				else if (Left < SourceStart)
-				{
-					// The mark started to the left and ends here
-					assert(Right <= SourceEnd);
-
-					Current->BlackLength += Source.BlackLength;
-					Current++; RunCount++; assert(RunCount <= AllocatedRunCount);
-				}
-				else
-				{
-					// The mark starts and stops in this black area
-					assert((Left >= SourceStart) && (Right <= SourceEnd));
-
-					Current->BlackLength = Source.BlackLength;
-					Current++; RunCount++; assert(RunCount <= AllocatedRunCount);
-				}
-			}
-
-			SourcePosition += Source.BlackLength;
-		}
-	}
-	else
 	{
-		bool Leftover = false;
-
-		for (unsigned int OldRun = 0; OldRun < OldRunCount; OldRun++)
+		class OldRunManager
 		{
-			Run &Source = OldRuns[OldRun];
-
-			{
-				unsigned int const &SourceStart = SourcePosition;
-				unsigned int const SourceEnd = SourcePosition + Source.WhiteLength;
-
-				// The source we're looking at is white
-				if ((Right < SourceStart) || (Left > SourceEnd))
-				{
-					// The marking area is either to the left or right of this area (and it doesn't touch),
-					// so just copy the source without modifying it.
-					Current->WhiteLength = Source.WhiteLength;
+			public:
+				OldRunManager(RunData const &Base, unsigned int const &Y) : 
+					Next(Base.Rows[Y].Runs), 
+					MaxCount(Base.Rows[Y].RunCount), Count(0), 
+					Width(0)
+				{ 
+					Advance();
 				}
-				else if ((Left < SourceStart) && (Right > SourceEnd))
-				{
-					// The marking region spans this region (the current run started earlier
-					// and doesn't end here)
-					Current->WhiteLength += Source.WhiteLength;
-				}
-				else if (Right > SourceEnd)
-				{
-					// The mark starts here, continuing on
-					assert(Left >= SourceStart);
 
-					Current->WhiteLength = Source.WhiteLength;
-				}
-				else if (Left < SourceStart)
+				~OldRunManager(void)
 				{
-					// The mark ends here
-					assert(Right <= SourceEnd);
-
-					Current->WhiteLength += Source.WhiteLength;
+					assert(Count == MaxCount);
 				}
-				else
+
+				unsigned int Right(void) const { return Width; }
+
+				unsigned int RunLength(void) const { return Length; }
+
+				bool IsBlack(void) const { return RunData::IsBlack(Count - 1); }
+
+				void Advance(void) 
 				{
-					// The mark falls entirely within this white region
-					assert((Left >= SourceStart) && (Right <= SourceEnd));
-
-					Current->WhiteLength = Source.WhiteLength;
+					assert(Count < MaxCount);
+					Length = *Next;
+					Width += Length;
+					++Next;
+					++Count;
 				}
-			}
+			private:
+				Run const *Next;
+				unsigned int const &MaxCount;
+				unsigned int Count;
+				unsigned int Width;
+				unsigned int Length;
+		} OldRun(*this, Y);
 
-			SourcePosition += Source.WhiteLength;
-			Leftover = false;
-
-			{
-				// Now we're considering the black region after the white region.
-				unsigned int const &SourceStart = SourcePosition;
-				unsigned int const SourceEnd = SourcePosition + Source.BlackLength;
-				if ((Right <= SourceStart) || (Left >= SourceEnd))
-				{
-					// The white mark either ends to the left or starts to the right
-					// (no interference, just copy over)
-					Current->BlackLength = Source.BlackLength;
-					Current++; RunCount++; assert(RunCount <= AllocatedRunCount);
-				}
-				else if ((Left <= SourceStart) && (Right >= SourceEnd))
-				{
-					// The white mark started earlier and doesn't stop here
-					Current->WhiteLength += Source.BlackLength;
-					Leftover = true;
-				}
-				else if (Right >= SourceEnd)
-				{
-					// The white mark starts here
-					assert(Left > SourceStart);
-
-					Current->BlackLength = Left - SourceStart;
-					Current++; RunCount++; assert(RunCount <= AllocatedRunCount);
-					Current->WhiteLength = SourceEnd - Left;
-					Leftover = true;
-				}
-				else if (Left <= SourceStart)
-				{
-					// The white mark started to the left (and stops here)
-					assert(Right < SourceEnd);
-
-					Current->WhiteLength += Right - SourceStart;
-					Current->BlackLength = SourceEnd - Right;
-					Current++; RunCount++; assert(RunCount <= AllocatedRunCount);
-				}
-				else
-				{
-					// The white mark starts and stops here
-					assert((Left > SourceStart) && (Right < SourceEnd));
-
-					Current->BlackLength = Left - SourceStart;
-					Current++; RunCount++; assert(RunCount <= AllocatedRunCount);
-					Current->WhiteLength = Right - Left;
-					Current->BlackLength = SourceEnd - Right;
-					Current++; RunCount++; assert(RunCount <= AllocatedRunCount);
-				}
-			}
-
-			SourcePosition += Source.BlackLength;
+		// Find the run, within or immediately after which the line starts.  Copy earlier runs over.
+		while (OldRun.Right() < Left)
+		{
+			NewRuns.Create(OldRun.RunLength());
+			OldRun.Advance();
 		}
 
-		// End any remaining white areas.  Is this a hack?
-		if (Leftover)
+		// If the run doesn't match the line color, cut it short.  Mark the start of our line.
+		int ExtendedLeft;
+		if (OldRun.IsBlack() == Black)
+			ExtendedLeft = NewRuns.Right();
+		else 
 		{
-			Current->BlackLength = 0;
-			Current++; RunCount++; assert(RunCount <= AllocatedRunCount);
+			ExtendedLeft = Left;
+			NewRuns.Create(Left - NewRuns.Right());
 		}
-	}
+		
+		// Skip over old runs that fall behind the new runs.
+		while (OldRun.Right() <= Right)
+			OldRun.Advance();
 
-#ifndef NDEBUG
-	unsigned int BlackZeroCount = 0;
-	unsigned int Position = 0;
-	for (unsigned int CurrentRun = 0; CurrentRun < RunCount; CurrentRun++)
+		// If the next run matches the new line color, incorporate it and finish the line.  Otherwise, finish the new line and shorten the next run.
+		if (OldRun.IsBlack() == Black)
+		{
+			NewRuns.Create(OldRun.Right() - ExtendedLeft);
+		}
+		else
+		{
+			NewRuns.Create(Right - ExtendedLeft);
+			NewRuns.Create(OldRun.Right() - Right);
+		}
+		if (OldRun.Right() < Width)
+			OldRun.Advance();
+
+		// Copy the remaining old runs over
+		while (OldRun.Right() < Width)
+		{
+			NewRuns.Create(OldRun.RunLength());
+			OldRun.Advance();
+		}
+		assert(OldRun.Right() == Width);
+	}
+		
+	assert(NewRuns.Right() == Width);
+
+	delete [] Rows[Y].Runs;
+	Rows[Y].Runs = NewRuns.GetFinalRuns();
+	Rows[Y].RunCount = NewRuns.GetFinalCount();
+	assert([&]() -> bool
 	{
-		Run &Test = Runs[CurrentRun];
-		Position += Test.WhiteLength + Test.BlackLength;
-		if (Test.BlackLength == 0) BlackZeroCount++;
-	}
-	assert(Position == Width);
-	assert(BlackZeroCount <= 1); // Last run
-#endif
-
-	// Delete the old data
-	delete [] OldRuns;
+		unsigned int Sum = 0;
+		for (unsigned int Index = 0; Index < Rows[Y].RunCount; Index++)
+		{
+			//std::cout << "Adding run " << Index << ": " << Base.Rows[Y].Runs[Index] << std::endl;
+			Sum += Rows[Y].Runs[Index];
+		}
+		//std::cout << "Count is " << MaxCount << ", sum is " << Sum << ", width is " << Base.Width << std::endl;
+		return Sum == Width;
+	}());
 }
 
 void RunData::Combine(unsigned int *Buffer, unsigned int const BufferWidth,
@@ -334,148 +226,91 @@ void RunData::Combine(unsigned int *Buffer, unsigned int const BufferWidth,
 {
 	// As much as possible we're doing everything in image space.
 	// Here we convert all positions to image space.
-	unsigned int const RowStart = Y * Scale, RowStop = std::min(Y * Scale + Scale, RowCount);
-	unsigned int const ColumnStart = X * Scale, ColumnStop = std::min((X + BufferWidth) * Scale, Width);
-
-	assert(ColumnStart < ColumnStop);
+	unsigned int const 
+		RowStart = Y * Scale, 
+		RowStop = std::min(Y * Scale + Scale, RowCount);
+	unsigned int const 
+		BufferLeft = X * Scale,
+		BufferRight = std::min(BufferLeft + BufferWidth * Scale, Width); 
 
 	/// Go through each underlying row and shade the buffer with dark pixels
 	for (unsigned int CurrentRowIndex = RowStart; CurrentRowIndex < RowStop; CurrentRowIndex++)
 	{
+		assert(BufferWidth >= 1);
+		unsigned int 
+			BufferColumn = 0, 
+			BufferColumnLeft = BufferLeft, // Inclusive
+			BufferColumnRight = BufferColumnLeft + Scale; // Exclusive
+
 		RunData::Row const& CurrentRow = Rows[CurrentRowIndex];
-
-		// Shade the black section of each run in the current row in the image
-		unsigned int RunPosition = 0;
-		Run const* CurrentRun = CurrentRow.Runs;
-		for (unsigned int CurrentRunIndex = 0; CurrentRunIndex < CurrentRow.RunCount; CurrentRunIndex++, CurrentRun++)
+		assert(CurrentRow.RunCount >= 1);
+		Run const * const &Runs = CurrentRow.Runs;
+		unsigned int 
+			RunIndex = 0,
+			Left = 0, // Inclusive
+			Right = Runs[RunIndex]; // Exclusive
+		while (true)
 		{
-			// Figure out where the black starts and stops.
-			unsigned int const BlackStart = RunPosition + CurrentRun->WhiteLength,
-				BlackStop = BlackStart + CurrentRun->BlackLength;
-
-			if (BlackStart >= ColumnStop) break; // Passed the drawing area
-			if (BlackStop < ColumnStart)
+			if (Right > BufferLeft)
 			{
-				// Not yet at the drawing area
-				RunPosition = BlackStop;
-				continue;
-			}
-
-			unsigned int ScreenStart = BlackStart / Scale,
-				ScreenStop = BlackStop / Scale;
-
-			assert(ScreenStop >= X);
-			assert(ScreenStart <= ScreenStop);
-
-			// Deal with the partially filled pixels at the beginning and end of the run,
-			// and make sure the run coordinates are all within the invalid area.
-			// Also, convert the screen coordinates to buffer coordinates.
-
-			if (ScreenStart == ScreenStop)
-			{
-				// Both stop and start are at the same valid position
-				ScreenStart -= X;
-				ScreenStop -= X;
-				assert(ScreenStart >= 0);
-				assert(ScreenStart < BufferWidth);
-				Buffer[ScreenStart] += CurrentRun->BlackLength;
-				assert(Buffer[ScreenStart] < Scale * Scale + 1);
-			}
-			else
-			{
-				// The start must either be before the current area or in the current area.
-				// Make it in the current area.
-				if (BlackStart >= ColumnStart)
+				if (Left >= BufferRight) break;
+				while (BufferColumnRight <= Left)
 				{
-					// Start is in the buffer area.  Darken whatever pixel it's over
-					// and move it to the beginning of the assuredly filled region.
-					assert(ScreenStart >= X);
-					ScreenStart -= X;
-					Buffer[ScreenStart] += Scale - BlackStart % Scale;
-					assert(Buffer[ScreenStart] < Scale * Scale + 1);
-					ScreenStart = ScreenStart + 1;
+					++BufferColumn;
+					if (BufferColumn >= BufferWidth) goto RowEndMark;
+					BufferColumnLeft += Scale;
+					BufferColumnRight += Scale;
 				}
-				else ScreenStart = 0;
-
-				// The stop must be in or past the current area.
-				// Make it in the current area or the bound for the current area
-				if (BlackStop < ColumnStop)
-				{
-					// Stop is in the buffer area.  Darken whatever pixel its over.
-					// Stop is the exclusive bound for the fill region.
-					assert(ScreenStop >= X);
-					ScreenStop -= X;
-					Buffer[ScreenStop] += BlackStop % Scale;
-					assert(Buffer[ScreenStop] < Scale * Scale + 1);
-				}
-				else ScreenStop = BufferWidth;
-
-				assert(ScreenStop <= BufferWidth);
-				assert(ScreenStart <= ScreenStop);
-
-				// Fill in the filled area inbetween the run start and stop
-				for (unsigned int BufferPixel = ScreenStart; BufferPixel < ScreenStop; BufferPixel++)
-				{
-					Buffer[BufferPixel] += Scale;
-					assert(Buffer[BufferPixel] < Scale * Scale + 1);
-				}
+				Buffer[BufferColumn] += std::min(Right, BufferColumnRight) - std::max(Left, BufferColumnLeft);
 			}
-
-			// Move along
-			RunPosition = BlackStop;
+			++RunIndex;
+			if (RunIndex >= CurrentRow.RunCount) break;
+			Left = Right;
+			Right += Runs[RunIndex];
 		}
+RowEndMark:;
 	}
 }
 
-void RunData::FlipVertically(void) { RotateVertically(0, RowCount); }
+void RunData::FlipVertically(void) { FlipSubsectionVertically(0, RowCount); }
 
 void RunData::FlipHorizontally(void)
 {
 	for (unsigned int CurrentRow = 0; CurrentRow < RowCount; CurrentRow++)
 	{
-		/// Allocate space for the flipped runs
-		Run *OldRuns = Rows[CurrentRow].Runs;
+		Run const *OldRuns = Rows[CurrentRow].Runs;
 		unsigned int const OldRunCount = Rows[CurrentRow].RunCount;
+		
+		// If the last element was black, add a 0 width white to start the new row
+		unsigned int const WriteStartOffset = IsBlack(OldRunCount - 1) ? 1 : 0;
 
-		unsigned int &NewRunCount = Rows[CurrentRow].RunCount;
-		NewRunCount = 0;
-		unsigned int const AllocatedRunCount = OldRunCount + 1;
-		Rows[CurrentRow].Runs = new Run[AllocatedRunCount];
+		// If the first element of the old is 0, skip it
+		unsigned int const ReadStartOffset = (OldRuns[0] == 0) ? 1 : 0;
 
-		/// Flip all the runs (offset them 1/2 run to the left, sort of)
-		Run *New = Rows[CurrentRow].Runs;
-		Run *Old = &OldRuns[OldRunCount - 1];
-		New->WhiteLength = 0;
+		unsigned int &NewRunCount = 
+			Rows[CurrentRow].RunCount = OldRunCount + WriteStartOffset - ReadStartOffset;
+		Rows[CurrentRow].Runs = new Run[NewRunCount];
 
-		unsigned int CurrentRun = 0;
+		if (WriteStartOffset == 1)
+			Rows[CurrentRow].Runs[0] = 0;
 
-		// Set up the starting conditions based on the end of the line
-		if (Old->BlackLength == 0)
+		auto SetNewRun = [&](unsigned int const &Index, unsigned int Width)
 		{
-			New->WhiteLength = Old->WhiteLength;
-			Old--;
-			CurrentRun++;
-		}
-		else New->WhiteLength = 0;
+			assert(Index < NewRunCount);
+			assert(Index >= WriteStartOffset);
+			Rows[CurrentRow].Runs[Index] = Width;
+		};
+		for (unsigned int OldRun = OldRunCount - 1; OldRun > ReadStartOffset; --OldRun)
+			SetNewRun(WriteStartOffset + (OldRunCount - 1) - OldRun, OldRuns[OldRun]);
 
-		// Go in opposite directions through the old and new runs and copy values over
-		for (; CurrentRun < OldRunCount; CurrentRun++)
+		assert([&]() -> bool
 		{
-			assert(Old >= OldRuns);
-			New->BlackLength = Old->BlackLength;
-			New++; NewRunCount++; assert(NewRunCount <= AllocatedRunCount);
-			New->WhiteLength = Old->WhiteLength;
-			Old--;
-		}
-
-		// Finish the last new run if it needs finishing
-		if (New->WhiteLength > 0)
-		{
-			New->BlackLength = 0;
-			New++; NewRunCount++; assert(NewRunCount <= AllocatedRunCount);
-		}
-
-		/// Delete the old data
+			unsigned int TestWidth;
+			for (unsigned int NewRun = 0; NewRun < Rows[CurrentRow].RunCount; NewRun++)
+				TestWidth += Rows[CurrentRow].Runs[NewRun];
+			return TestWidth == Width;
+		}());
+		
 		delete [] OldRuns;
 	}
 }
@@ -492,19 +327,21 @@ void RunData::ShiftHorizontally(int Columns)
 
 void RunData::ShiftVertically(int Rows)
 {
-	unsigned int const Split = Rows % RowCount;
+	/*unsigned int const Split = Rows % RowCount;
 	Reverse(0, Split);
 	Reverse(Split, RowCount);
-	Reverse(0, RowCount);
+	Reverse(0, RowCount);*/
 }
 		
-void RunData::ReverseVertically(unsigned int const Start, unsigned int const End)
+bool RunData::IsBlack(unsigned int const &Index) { return Index & 1; }
+		
+void RunData::FlipSubsectionVertically(unsigned int const &Start, unsigned int const &End)
 {
 	assert(Start <= RowCount);
 	assert(End <= RowCount);
 	assert(Start <= End);
 
-	int Half = (Start + End) / 2;
+	unsigned int Half = (Start + End) / 2;
 	for (unsigned int CurrentRow = Start; CurrentRow < Half; ++CurrentRow)
 	{
 		Row Temp = Rows[CurrentRow];
