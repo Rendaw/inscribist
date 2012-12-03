@@ -55,33 +55,50 @@ void ChangeManager::Redo(bool &FlippedHorizontally, bool &FlippedVertically)
 
 //////////////////////////////////////////////////////////////////////////////////////////
 // RLE data methods and storage
-RunData::RunData(const FlatVector &Size) :
-	RowCount(Size[1]), Width(std::max(Size[0], 1.0f)), Rows(new Row[RowCount])
+RunData::RunData(const FlatVector &Size) : Width(std::max(Size[0], 1.0f))
 {
-	for (unsigned int CurrentRow = 0; CurrentRow < RowCount; CurrentRow++)
+	Rows.resize(Size[1]);
+	for (auto &Row : Rows)
 	{
-		Rows[CurrentRow].RunCount = 1;
-		Rows[CurrentRow].Runs = new Run[1];
-		Rows[CurrentRow].Runs[0] = Width;
+		Row.resize(1);
+		Row[0] = Width;
 	}
 }
-
-RunData::~RunData(void)
+	
+static unsigned int CalculateWidth(RunData::RowArray const &Rows)
 {
-	// Clean up image data
-	for (unsigned int CurrentRow = 0; CurrentRow < RowCount; CurrentRow++)
-		delete [] Rows[CurrentRow].Runs;
-	delete [] Rows;
+	unsigned int Width = 0;
+	bool WidthUnset = true;
+	for (auto const &Row : Rows)
+	{
+		unsigned int TestWidth = 0;
+		for (auto const &Run : Row) TestWidth += Run;
+		if (WidthUnset)
+		{
+			Width = TestWidth;
+			WidthUnset = false;
+		}
+		else
+		{
+			assert(TestWidth == Width);
+		}
+	}
+	assert(Width >= 0);
+	return Width;
 }
+
+RunData::RunData(std::vector<std::vector<Run> > const &InitialRows) : 
+	Rows(InitialRows), Width(CalculateWidth(Rows))
+	{ }
 
 void RunData::Line(int UnclippedLeft, int UnclippedRight, int const Y, bool Black)
 {
 	// Validate parameters
 	if (Y < 0) return;
-	if ((unsigned int)Y >= RowCount) return;
+	if ((unsigned int)Y >= Rows.size()) return;
 
 	unsigned int const Right = RangeD(0, Width).Constrain(UnclippedRight);
-	unsigned int const Left = std::min((unsigned int)RangeD(0, Right).Constrain(UnclippedLeft), Width - 1);
+	unsigned int const Left = RangeD(0, Right).Constrain(UnclippedLeft);
 
 	if (Left == Right) return;
 
@@ -92,31 +109,28 @@ void RunData::Line(int UnclippedLeft, int UnclippedRight, int const Y, bool Blac
 	{
 		public:
 			NewRunManager(RunData const &Base, unsigned int const &Y) : 
-				MaxCount(Base.Rows[Y].RunCount + 2), Count(0), 
-				NewRuns(new Run[MaxCount]), Current(NewRuns),
+				MaxCount(Base.Rows[Y].size() + 2),
 				MaxWidth(Base.Width), Width(0)
-				{}
+			{
+				assert(MaxCount >= 2);
+				NewRuns.reserve(MaxCount);
+			}
 
 			void Create(unsigned int Length)
 			{
-				assert((Count == 0) || (Length > 0));
-				assert(Count < MaxCount);
-				*Current = Length;
-				++Current;
-				++Count;
+				assert((NewRuns.size() == 0) || (Length > 0));
+				assert(NewRuns.size() < MaxCount);
+				NewRuns.push_back(Length);
 				assert(Width + Length <= MaxWidth);
 				Width += Length;
 			}
 
 			unsigned int Right(void) const { return Width; }
 
-			Run *GetFinalRuns(void) { return NewRuns; }
-
-			unsigned int GetFinalCount(void) { assert(Count >= 1); return Count; }
+			RunArray &&GetFinalRuns(void) { return std::move(NewRuns); }
 		private:
-			unsigned int const &MaxCount;
-			unsigned int Count;
-			Run *NewRuns, *Current;
+			unsigned int const MaxCount;
+			RunArray NewRuns;
 			unsigned int const &MaxWidth;
 			unsigned int Width;
 	} NewRuns(*this, Y);
@@ -126,16 +140,14 @@ void RunData::Line(int UnclippedLeft, int UnclippedRight, int const Y, bool Blac
 		{
 			public:
 				OldRunManager(RunData const &Base, unsigned int const &Y) : 
-					Next(Base.Rows[Y].Runs), 
-					MaxCount(Base.Rows[Y].RunCount), Count(0), 
-					Width(0)
+					OldRuns(Base.Rows[Y]), Count(0), Width(0)
 				{ 
 					Advance();
 				}
 
 				~OldRunManager(void)
 				{
-					assert(Count == MaxCount);
+					assert(Count == OldRuns.size());
 				}
 
 				unsigned int Right(void) const { return Width; }
@@ -146,15 +158,13 @@ void RunData::Line(int UnclippedLeft, int UnclippedRight, int const Y, bool Blac
 
 				void Advance(void) 
 				{
-					assert(Count < MaxCount);
-					Length = *Next;
+					assert(Count < OldRuns.size());
+					Length = OldRuns[Count];
 					Width += Length;
-					++Next;
 					++Count;
 				}
 			private:
-				Run const *Next;
-				unsigned int const &MaxCount;
+				RunArray const &OldRuns;
 				unsigned int Count;
 				unsigned int Width;
 				unsigned int Length;
@@ -177,8 +187,8 @@ void RunData::Line(int UnclippedLeft, int UnclippedRight, int const Y, bool Blac
 			NewRuns.Create(Left - NewRuns.Right());
 		}
 		
-		// Skip over old runs that fall behind the new runs.
-		while (OldRun.Right() <= Right)
+		// Skip over old runs that fall entirely behind the new runs.
+		while ((OldRun.Right() < Width) && (OldRun.Right() <= Right))
 			OldRun.Advance();
 
 		// If the next run matches the new line color, incorporate it and finish the line.  Otherwise, finish the new line and shorten the next run.
@@ -189,36 +199,29 @@ void RunData::Line(int UnclippedLeft, int UnclippedRight, int const Y, bool Blac
 		else
 		{
 			NewRuns.Create(Right - ExtendedLeft);
-			NewRuns.Create(OldRun.Right() - Right);
+			if (Right < OldRun.Right())
+				NewRuns.Create(OldRun.Right() - Right);
 		}
+
 		if (OldRun.Right() < Width)
+		{
+			// Advance past the run that touched the modified region
 			OldRun.Advance();
 
-		// Copy the remaining old runs over
-		while (OldRun.Right() < Width)
-		{
-			NewRuns.Create(OldRun.RunLength());
-			OldRun.Advance();
+			// Copy the remaining old runs over
+			while (true)
+			{
+				NewRuns.Create(OldRun.RunLength());
+				if (OldRun.Right() == Width) break;
+				OldRun.Advance();
+			}
 		}
 		assert(OldRun.Right() == Width);
 	}
-		
-	assert(NewRuns.Right() == Width);
 
-	delete [] Rows[Y].Runs;
-	Rows[Y].Runs = NewRuns.GetFinalRuns();
-	Rows[Y].RunCount = NewRuns.GetFinalCount();
-	assert([&]() -> bool
-	{
-		unsigned int Sum = 0;
-		for (unsigned int Index = 0; Index < Rows[Y].RunCount; Index++)
-		{
-			//std::cout << "Adding run " << Index << ": " << Base.Rows[Y].Runs[Index] << std::endl;
-			Sum += Rows[Y].Runs[Index];
-		}
-		//std::cout << "Count is " << MaxCount << ", sum is " << Sum << ", width is " << Base.Width << std::endl;
-		return Sum == Width;
-	}());
+	assert(NewRuns.Right() == Width);
+		
+	Rows[Y] = NewRuns.GetFinalRuns();
 }
 
 void RunData::Combine(unsigned int *Buffer, unsigned int const BufferWidth,
@@ -228,7 +231,7 @@ void RunData::Combine(unsigned int *Buffer, unsigned int const BufferWidth,
 	// Here we convert all positions to image space.
 	unsigned int const 
 		RowStart = Y * Scale, 
-		RowStop = std::min(Y * Scale + Scale, RowCount);
+		RowStop = std::min(Y * Scale + Scale, (unsigned int)Rows.size());
 	unsigned int const 
 		BufferLeft = X * Scale,
 		BufferRight = std::min(BufferLeft + BufferWidth * Scale, Width); 
@@ -242,144 +245,128 @@ void RunData::Combine(unsigned int *Buffer, unsigned int const BufferWidth,
 			BufferColumnLeft = BufferLeft, // Inclusive
 			BufferColumnRight = BufferColumnLeft + Scale; // Exclusive
 
-		RunData::Row const& CurrentRow = Rows[CurrentRowIndex];
-		assert(CurrentRow.RunCount >= 1);
-		Run const * const &Runs = CurrentRow.Runs;
+		RunArray const &CurrentRow = Rows[CurrentRowIndex];
+		assert(CurrentRow.size() >= 1);
 		unsigned int 
 			RunIndex = 0,
-			Left = 0, // Inclusive
-			Right = Runs[RunIndex]; // Exclusive
+			RunLeft = 0, // Inclusive
+			RunRight = CurrentRow[RunIndex]; // Exclusive
 		while (true)
 		{
-			if (Right > BufferLeft)
+			if (RunLeft >= BufferRight) break;
+			if (IsBlack(RunIndex))
 			{
-				if (Left >= BufferRight) break;
-				while (BufferColumnRight <= Left)
+				while (BufferColumnLeft < RunRight)
 				{
+					if (BufferColumnRight > RunLeft)
+					{
+						Buffer[BufferColumn] += std::min(RunRight, BufferColumnRight) - std::max(RunLeft, BufferColumnLeft);
+					}
 					++BufferColumn;
 					if (BufferColumn >= BufferWidth) goto RowEndMark;
 					BufferColumnLeft += Scale;
 					BufferColumnRight += Scale;
 				}
-				Buffer[BufferColumn] += std::min(Right, BufferColumnRight) - std::max(Left, BufferColumnLeft);
 			}
 			++RunIndex;
-			if (RunIndex >= CurrentRow.RunCount) break;
-			Left = Right;
-			Right += Runs[RunIndex];
+			if (RunIndex >= CurrentRow.size()) break;
+			RunLeft = RunRight;
+			RunRight += CurrentRow[RunIndex];
 		}
 RowEndMark:;
 	}
 }
 
-void RunData::FlipVertically(void) { FlipSubsectionVertically(0, RowCount); }
+void RunData::FlipVertically(void) { FlipSubsectionVertically(0, Rows.size()); }
 
 void RunData::FlipHorizontally(void)
 {
-	for (unsigned int CurrentRow = 0; CurrentRow < RowCount; CurrentRow++)
+	for (unsigned int CurrentRow = 0; CurrentRow < Rows.size(); CurrentRow++)
 	{
-		Run const *OldRuns = Rows[CurrentRow].Runs;
-		unsigned int const OldRunCount = Rows[CurrentRow].RunCount;
+		RunArray OldRuns; 
+		Rows[CurrentRow].swap(OldRuns); // Could we just move constructor and clear instead?
 		
 		// If the last element was black, add a 0 width white to start the new row
-		unsigned int const WriteStartOffset = IsBlack(OldRunCount - 1) ? 1 : 0;
+		unsigned int const WriteStartOffset = IsBlack(OldRuns.size() - 1) ? 1 : 0;
 
 		// If the first element of the old is 0, skip it
 		unsigned int const ReadStartOffset = (OldRuns[0] == 0) ? 1 : 0;
 
-		unsigned int &NewRunCount = 
-			Rows[CurrentRow].RunCount = OldRunCount + WriteStartOffset - ReadStartOffset;
-		Rows[CurrentRow].Runs = new Run[NewRunCount];
+		Rows[CurrentRow].resize(OldRuns.size() + WriteStartOffset - ReadStartOffset);
 
 		if (WriteStartOffset == 1)
-			Rows[CurrentRow].Runs[0] = 0;
+			Rows[CurrentRow][0] = 0;
 
-		auto SetNewRun = [&](unsigned int const &Index, unsigned int Width)
+		auto SetNewRun = [&](unsigned int const &NewIndex, unsigned int const &OldIndex)
 		{
-			assert(Index < NewRunCount);
-			assert(Index >= WriteStartOffset);
-			Rows[CurrentRow].Runs[Index] = Width;
+			assert(NewIndex < Rows[CurrentRow].size());
+			assert(NewIndex >= WriteStartOffset);
+			assert(OldIndex < OldRuns.size());
+			assert(OldIndex >= ReadStartOffset);
+			Rows[CurrentRow][NewIndex] = OldRuns[OldIndex];
 		};
-		for (unsigned int OldRun = OldRunCount - 1; OldRun > ReadStartOffset; --OldRun)
-			SetNewRun(WriteStartOffset + (OldRunCount - 1) - OldRun, OldRuns[OldRun]);
-
-		assert([&]() -> bool
-		{
-			unsigned int TestWidth;
-			for (unsigned int NewRun = 0; NewRun < Rows[CurrentRow].RunCount; NewRun++)
-				TestWidth += Rows[CurrentRow].Runs[NewRun];
-			return TestWidth == Width;
-		}());
-		
-		delete [] OldRuns;
+		for (unsigned int NewRun = 0; NewRun < Rows[CurrentRow].size() - WriteStartOffset; ++NewRun)
+			SetNewRun(WriteStartOffset + NewRun, OldRuns.size() - 1 - NewRun);
 	}
 }
 
 void RunData::ShiftHorizontally(int Columns)
 {
 	/*unsigned int const Split = Columns % Width;
-	for (unsigned int CurrentRow = 0; CurrentRow < RowCount; CurrentRow++)
+	for (unsigned int CurrentRow = 0; CurrentRow < Rows.size(); CurrentRow++)
 	{
 		Run *OldRuns = Rows[CurrentRow].Runs;
-		unsigned int const OldRunCount = Rows[CurrentRow].RunCount;
+		unsigned int const OldRuns.size() = Rows[CurrentRow].RunCount;
 	}*/
 }
 
 void RunData::ShiftVertically(int Rows)
 {
-	/*unsigned int const Split = Rows % RowCount;
+	/*unsigned int const Split = Rows % Rows.size();
 	Reverse(0, Split);
-	Reverse(Split, RowCount);
-	Reverse(0, RowCount);*/
+	Reverse(Split, Rows.size());
+	Reverse(0, Rows.size());*/
 }
 		
 bool RunData::IsBlack(unsigned int const &Index) { return Index & 1; }
 		
 void RunData::FlipSubsectionVertically(unsigned int const &Start, unsigned int const &End)
 {
-	assert(Start <= RowCount);
-	assert(End <= RowCount);
+	assert(Start <= Rows.size());
+	assert(End <= Rows.size());
 	assert(Start <= End);
 
 	unsigned int Half = (Start + End) / 2;
 	for (unsigned int CurrentRow = Start; CurrentRow < Half; ++CurrentRow)
-	{
-		Row Temp = Rows[CurrentRow];
-		Rows[CurrentRow] = Rows[End - CurrentRow - 1];
-		Rows[End - CurrentRow - 1] = Temp;
+	{ 
+		// Can I use std::move instead?  Extra allocations?
+		RunArray Temp;
+		Temp.swap(Rows[CurrentRow]);
+		Rows[CurrentRow].swap(Rows[End - CurrentRow - 1]);
+		Rows[End - CurrentRow - 1].swap(Temp);
 	}
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////
 // Undo levels
 
-Mark::Mark(RunData &Base) : Base(Base), RowCount(Base.RowCount)
+Mark::Mark(RunData &Base) : Base(Base)
 {
-	assert(RowCount == Base.RowCount);
-	Rows = new RunData::Row[RowCount];
-	memset(Rows, 0, sizeof(RunData::Row) * RowCount);
+	Rows.resize(Base.Rows.size());
 }
 
 Change *Mark::Apply(bool &FlippedHorizontally, bool &FlippedVertically)
 {
-	assert(RowCount == Base.RowCount);
+	assert(Rows.size() == Base.Rows.size());
 	FlippedHorizontally = false;
 	FlippedVertically = false;
 	Mark *Out = new Mark(Base);
 	
-	for (unsigned int CurrentRow = 0; CurrentRow < RowCount; ++CurrentRow)
-		if (Rows[CurrentRow].Runs != nullptr)
+	for (unsigned int CurrentRow = 0; CurrentRow < Rows.size(); ++CurrentRow)
+		if (Rows[CurrentRow].size() > 0)
 		{
 			Out->AddLine(CurrentRow);
-
-			RunData::Row const &SourceRow = Rows[CurrentRow];
-			RunData::Row &DestinationRow = Base.Rows[CurrentRow];
-
-			delete [] DestinationRow.Runs;
-			DestinationRow.RunCount = SourceRow.RunCount;
-			DestinationRow.Runs = new RunData::Run[SourceRow.RunCount];
-
-			memcpy(DestinationRow.Runs, SourceRow.Runs, sizeof(RunData::Run) * SourceRow.RunCount);
+			std::swap(Base.Rows[CurrentRow], Rows[CurrentRow]);
 		}
 
 	return Out;
@@ -389,18 +376,14 @@ Change::CombineResult Mark::Combine(Change *Other) { return Change::CombineResul
 
 void Mark::AddLine(unsigned int const &LineNumber)
 {
-	assert(LineNumber < Base.RowCount);
-	assert(LineNumber < RowCount);
+	assert(LineNumber < Base.Rows.size());
+	assert(LineNumber < Rows.size());
 
 	// Only add lines if they haven't already been added at this undo level (keep the state at the beginning of the undo)
-	if (Rows[LineNumber].Runs != nullptr) return;
+	if (Rows[LineNumber].size() > 0) return;
 
-	RunData::Row &CurrentRow = Rows[LineNumber];
-	RunData::Row const &SourceRow = Base.Rows[LineNumber];
-
-	CurrentRow.RunCount = SourceRow.RunCount;
-	CurrentRow.Runs = new RunData::Run[CurrentRow.RunCount];
-	memcpy(CurrentRow.Runs, SourceRow.Runs, sizeof(RunData::Run) * CurrentRow.RunCount);
+	Rows[LineNumber] = Base.Rows[LineNumber];
+	assert(Rows[LineNumber].size() > 0);
 }
 
 HorizontalFlip::HorizontalFlip(RunData &Base) : Base(Base) { }
@@ -504,7 +487,7 @@ Image::Image(SettingsData &Settings, String const &Filename) :
 	}
 
 	/// Read in the image data
-	unsigned int RowCount, Width;
+	uint32_t RowCount, Width;
 	BZ2_bzRead(&Error, CompressInput, &RowCount, sizeof(RowCount));
 	BZ2_bzRead(&Error, CompressInput, &Width, sizeof(Width));
 
@@ -516,13 +499,12 @@ Image::Image(SettingsData &Settings, String const &Filename) :
 
 	DisplaySpace.Size = ImageSpace.Size / (float)PixelsBelow;
 
-	for (unsigned int CurrentRow = 0; CurrentRow < RowCount; CurrentRow++)
+	for (uint32_t CurrentRow = 0; CurrentRow < RowCount; CurrentRow++)
 	{
-		delete [] Data->Rows[CurrentRow].Runs;
-
-		BZ2_bzRead(&Error, CompressInput, &Data->Rows[CurrentRow].RunCount, sizeof(Data->Rows[CurrentRow].RunCount));
-		Data->Rows[CurrentRow].Runs = new RunData::Run[Data->Rows[CurrentRow].RunCount];
-		BZ2_bzRead(&Error, CompressInput, Data->Rows[CurrentRow].Runs, sizeof(RunData::Run) * Data->Rows[CurrentRow].RunCount);
+		uint32_t RunCount;
+		BZ2_bzRead(&Error, CompressInput, &RunCount, sizeof(RunCount));
+		Data->Rows[CurrentRow].resize(RunCount);
+		BZ2_bzRead(&Error, CompressInput, &Data->Rows[CurrentRow][0], sizeof(RunData::Run) * RunCount);
 	}
 
 	/// Close the file and finish up.
@@ -574,20 +556,17 @@ bool Image::Save(String const &Filename)
 	BZ2_bzWrite(&Error, CompressOutput, &ExportInk, sizeof(ExportInk));
 
 	/// Write the image data
-	unsigned int RowCountBuffer = Data->RowCount;
+	uint32_t RowCountBuffer = Data->Rows.size();
 	BZ2_bzWrite(&Error, CompressOutput, &RowCountBuffer, sizeof(RowCountBuffer));
-	unsigned int WidthBuffer = Data->Width;
+	uint32_t WidthBuffer = Data->Width;
 	BZ2_bzWrite(&Error, CompressOutput, &WidthBuffer, sizeof(WidthBuffer));
-	for (unsigned int CurrentRow = 0; CurrentRow < Data->RowCount; CurrentRow++)
+	for (uint32_t CurrentRow = 0; CurrentRow < Data->Rows.size(); CurrentRow++)
 	{
-		unsigned int RunCountBuffer = Data->Rows[CurrentRow].RunCount;
+		uint32_t RunCountBuffer = Data->Rows[CurrentRow].size();
 		BZ2_bzWrite(&Error, CompressOutput, &RunCountBuffer, sizeof(RunCountBuffer));
 
-		unsigned int RunBufferSize = sizeof(RunData::Run) * Data->Rows[CurrentRow].RunCount;
-		char *RunBuffer = new char[RunBufferSize];
-		memcpy(RunBuffer, Data->Rows[CurrentRow].Runs, RunBufferSize);
-		BZ2_bzWrite(&Error, CompressOutput, RunBuffer, RunBufferSize);
-		delete [] RunBuffer;
+		uint32_t RunBufferSize = sizeof(RunData::Run) * Data->Rows[CurrentRow].size();
+		BZ2_bzWrite(&Error, CompressOutput, &Data->Rows[CurrentRow][0], RunBufferSize);
 	}
 
 	/// Close everything

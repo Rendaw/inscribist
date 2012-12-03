@@ -41,13 +41,15 @@ class ChangeManager
 struct RunData
 {
 	public:
-		unsigned int const RowCount;
-		unsigned int const Width;
 		typedef unsigned int Run; // Each row starts with white (first run is white)
-		struct Row { unsigned int RunCount; Run *Runs; } *Rows;
+		typedef std::vector<Run> RunArray;
+		typedef std::vector<RunArray> RowArray;
+
+		RowArray Rows;
+		unsigned int const Width;
 
 		RunData(const FlatVector &Size);
-		~RunData(void);
+		RunData(std::vector<std::vector<Run> > const &InitialRows);
 
 		/// Manipulation
 		void Line(int Left, int Right, int const Y, bool Black);
@@ -75,8 +77,7 @@ class Mark : public Change
 		void AddLine(unsigned int const &LineNumber);
 	private:
 		RunData &Base;
-		RunData::Row *Rows;
-		const unsigned int RowCount; // Sanity check, technically not necessary
+		RunData::RowArray Rows;
 };
 
 class HorizontalFlip : public Change
