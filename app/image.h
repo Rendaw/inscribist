@@ -64,7 +64,7 @@ struct RunData
 		void ShiftVertically(int Rows);
 	private:
 		static bool IsBlack(unsigned int const &Index);
-		void FlipSubsectionVertically(unsigned int const &Start, unsigned int const &Count);
+		void FlipSubsectionVertically(unsigned int const &Start, unsigned int const &End);
 };
 
 class Mark : public Change

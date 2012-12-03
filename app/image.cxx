@@ -312,20 +312,79 @@ void RunData::FlipHorizontally(void)
 
 void RunData::ShiftHorizontally(int Columns)
 {
-	/*unsigned int const Split = Columns % Width;
+	// Split is where the end will be after the shift
+	unsigned int const Split = Mod(-Columns, Width);
+	assert(Split <= Width);
+	
+	// Shift each row to align with the new split
 	for (unsigned int CurrentRow = 0; CurrentRow < Rows.size(); CurrentRow++)
 	{
-		Run *OldRuns = Rows[CurrentRow].Runs;
-		unsigned int const OldRuns.size() = Rows[CurrentRow].RunCount;
-	}*/
+		RunArray OldRuns; 
+		Rows[CurrentRow].swap(OldRuns); // Could we just move constructor and clear instead?
+
+		// First, find the row that straddles/hits the division 
+		unsigned int CurrentRun = 0, RunRight = OldRuns[CurrentRun];
+		while (RunRight < Split)
+		{
+			assert(CurrentRun < OldRuns.size());
+			++CurrentRun;
+			RunRight += OldRuns[CurrentRun];
+		}
+		unsigned int StraddleRun = CurrentRun;
+		
+		Rows[CurrentRow].reserve(OldRuns.size() + 2); // Potential white padding + extra split run
+
+		// Write the runs to the end.
+		unsigned int const StraddleRunPostSplit = RunRight - Split;
+		if (StraddleRunPostSplit < OldRuns[CurrentRun])
+		{
+			if (IsBlack(CurrentRun))
+				Rows[CurrentRow].push_back(0);
+			Rows[CurrentRow].push_back(RunRight - Split);
+			assert(CurrentRun < OldRuns.size());
+			++CurrentRun;
+		}
+
+		while (CurrentRun < OldRuns.size())
+		{
+			Rows[CurrentRow].push_back(OldRuns[CurrentRun]);
+			assert(CurrentRun < OldRuns.size());
+			++CurrentRun;
+		}
+
+		// Start from the beginning, and work back to the split.  Drop the initial padded white if present.
+		CurrentRun = 0;
+		RunRight = OldRuns[CurrentRun];
+		while (CurrentRun < StraddleRun)
+		{
+			if (OldRuns[CurrentRun] != 0)
+			{
+				Rows[CurrentRow].push_back(OldRuns[CurrentRun]);
+			}
+			++CurrentRun;
+			RunRight += OldRuns[CurrentRun];
+		}
+
+		// If the run is split, write the opening portion as a final run
+		if (StraddleRunPostSplit < OldRuns[CurrentRun])
+		{
+			Rows[CurrentRow].push_back(OldRuns[CurrentRun] - StraddleRunPostSplit);
+		}
+
+#ifndef NDEBUG
+		unsigned int TestWidth = 0; 
+		for (auto const &Run : Rows[CurrentRow]) TestWidth += Run; 
+		assert(TestWidth == Width);
+#endif
+	}
 }
 
 void RunData::ShiftVertically(int Rows)
 {
-	/*unsigned int const Split = Rows % Rows.size();
-	Reverse(0, Split);
-	Reverse(Split, Rows.size());
-	Reverse(0, Rows.size());*/
+	unsigned int const Split = Mod(-Rows, this->Rows.size());
+	FlipSubsectionVertically(0, Split);
+	FlipSubsectionVertically(Split, this->Rows.size());
+	FlipSubsectionVertically(0, this->Rows.size());
 }
 		
 bool RunData::IsBlack(unsigned int const &Index) { return Index & 1; }
@@ -336,15 +395,9 @@ void RunData::FlipSubsectionVertically(unsigned int const &Start, unsigned int c
 	assert(End <= Rows.size());
 	assert(Start <= End);
 
-	unsigned int Half = (Start + End) / 2;
-	for (unsigned int CurrentRow = Start; CurrentRow < Half; ++CurrentRow)
-	{ 
-		// Can I use std::move instead?  Extra allocations?
-		RunArray Temp;
-		Temp.swap(Rows[CurrentRow]);
-		Rows[CurrentRow].swap(Rows[End - CurrentRow - 1]);
-		Rows[End - CurrentRow - 1].swap(Temp);
-	}
+	unsigned int const Half = (End - Start) / 2;
+	for (unsigned int CurrentRow = 0; CurrentRow < Half; ++CurrentRow)
+		Rows[Start + CurrentRow].swap(Rows[End - 1 - CurrentRow]);
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////
