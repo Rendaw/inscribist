@@ -31,6 +31,7 @@ void ChangeManager::AddUndo(Change *Undo)
 			break;
 		case Change::CombineResult::Combine:
 			delete Undo;
+			break;
 		default: assert(false); break;
 	}
 }
@@ -317,64 +318,98 @@ void RunData::ShiftHorizontally(int Columns)
 	assert(Split <= Width);
 	
 	// Shift each row to align with the new split
-	for (unsigned int CurrentRow = 0; CurrentRow < Rows.size(); CurrentRow++)
+	for (unsigned int CurrentRow = 0; CurrentRow < Rows.size(); ++CurrentRow)
 	{
 		RunArray OldRuns; 
+		assert(!Rows[CurrentRow].empty());
 		Rows[CurrentRow].swap(OldRuns); // Could we just move constructor and clear instead?
 
-		// First, find the row that straddles/hits the division 
-		unsigned int CurrentRun = 0, RunRight = OldRuns[CurrentRun];
-		while (RunRight < Split)
+		class RunIterator
 		{
-			assert(CurrentRun < OldRuns.size());
-			++CurrentRun;
-			RunRight += OldRuns[CurrentRun];
-		}
-		unsigned int StraddleRun = CurrentRun;
+			public:
+				RunIterator(RunArray const &Runs) : Runs(Runs), CurrentRun(0) 
+					{ assert(!Runs.empty()); RunRight = Runs[CurrentRun]; }
+
+				void Reset(void) { CurrentRun = 0; RunRight = Runs[CurrentRun]; }
+
+				bool CanAdvance(void) { return CurrentRun + 1 < Runs.size(); }
+
+				void Advance(void)
+				{
+					++CurrentRun;
+					assert(CurrentRun < Runs.size());
+					RunRight += Runs[CurrentRun];
+				}
+
+				unsigned int Right(void) { return RunRight; }
+
+				unsigned int Index(void) { return CurrentRun; }
+
+				unsigned int Width(void) { return Runs[CurrentRun]; }
+
+				bool IsBlack(void) { return RunData::IsBlack(CurrentRun); }
+
+			private:
+				RunArray const &Runs;
+				unsigned int CurrentRun, RunRight;
+
+		} OldRun(OldRuns);
+
+		// First, find the row that straddles/hits the division 
+		while (OldRun.Right() <= Split)
+			OldRun.Advance();
+
+		unsigned int const StraddleRunIndex = OldRun.Index();
 		
 		Rows[CurrentRow].reserve(OldRuns.size() + 2); // Potential white padding + extra split run
 
 		// Write the runs to the end.
-		unsigned int const StraddleRunPostSplit = RunRight - Split;
-		if (StraddleRunPostSplit < OldRuns[CurrentRun])
+		auto AddPostSplitRun = [&](bool Black, unsigned int Length)
 		{
-			if (IsBlack(CurrentRun))
+			assert(Length > 0);
+			if (Rows[CurrentRow].empty() && Black)
 				Rows[CurrentRow].push_back(0);
-			Rows[CurrentRow].push_back(RunRight - Split);
-			assert(CurrentRun < OldRuns.size());
-			++CurrentRun;
-		}
+			Rows[CurrentRow].push_back(Length);
+		};
 
-		while (CurrentRun < OldRuns.size())
+		unsigned int const StraddleRunRemainder = OldRun.Right() - Split;
+		AddPostSplitRun(OldRun.IsBlack(), StraddleRunRemainder);
+
+		while (OldRun.CanAdvance())
 		{
-			Rows[CurrentRow].push_back(OldRuns[CurrentRun]);
-			assert(CurrentRun < OldRuns.size());
-			++CurrentRun;
+			OldRun.Advance();
+			AddPostSplitRun(OldRun.IsBlack(), OldRun.Width());
 		}
 
 		// Start from the beginning, and work back to the split.  Drop the initial padded white if present.
-		CurrentRun = 0;
-		RunRight = OldRuns[CurrentRun];
-		while (CurrentRun < StraddleRun)
+		OldRun.Reset();
+
+		if (OldRun.Width() == 0)
+			OldRun.Advance();
+		
+		auto AddPreSplitRun = [&](bool Black, unsigned int Length)
 		{
-			if (OldRuns[CurrentRun] != 0)
-			{
-				Rows[CurrentRow].push_back(OldRuns[CurrentRun]);
-			}
-			++CurrentRun;
-			RunRight += OldRuns[CurrentRun];
+			assert(Length > 0);
+			assert(!Rows[CurrentRow].empty());
+			if (IsBlack(Rows[CurrentRow].size() - 1) == Black)
+				Rows[CurrentRow].back() += Length;
+			else Rows[CurrentRow].push_back(Length);
+		};
+
+		while (OldRun.Index() < StraddleRunIndex)
+		{
+			AddPreSplitRun(OldRun.IsBlack(), OldRun.Width());
+			OldRun.Advance();
 		}
 
 		// If the run is split, write the opening portion as a final run
-		if (StraddleRunPostSplit < OldRuns[CurrentRun])
-		{
-			Rows[CurrentRow].push_back(OldRuns[CurrentRun] - StraddleRunPostSplit);
-		}
+		if (StraddleRunRemainder != OldRun.Width())
+			AddPreSplitRun(OldRun.IsBlack(), OldRun.Width() - StraddleRunRemainder);
 
 #ifndef NDEBUG
-		unsigned int TestWidth = 0; 
+		/*unsigned int TestWidth = 0; 
 		for (auto const &Run : Rows[CurrentRow]) TestWidth += Run; 
-		assert(TestWidth == Width);
+		assert(TestWidth == Width);*/
 #endif
 	}
 }
@@ -385,6 +420,119 @@ void RunData::ShiftVertically(int Rows)
 	FlipSubsectionVertically(0, Split);
 	FlipSubsectionVertically(Split, this->Rows.size());
 	FlipSubsectionVertically(0, this->Rows.size());
+}
+		
+void RunData::Add(unsigned int const Left, unsigned int const Right, unsigned int const Up, unsigned int const Down)
+{
+	Rows.resize(Rows.size() + Up + Down);
+	Width += Left + Right;
+	for (unsigned int NewRowReverseIndex = 0; NewRowReverseIndex < Rows.size(); NewRowReverseIndex++)
+	{
+		unsigned int const NewRowIndex = Rows.size() - 1 - NewRowReverseIndex;
+		RunArray &NewRow = Rows[NewRowIndex];
+		if ((NewRowIndex >= Up) && (NewRowIndex < Rows.size() - Down))
+		{
+			if (Up > 0)
+			{
+				assert(NewRow.empty());
+				NewRow.swap(Rows[NewRowIndex - Up]);
+			}
+			NewRow[0] += Left;
+			unsigned int const RightColumn = NewRow.size() - 1;
+			if ((Right > 0) && IsBlack(RightColumn))
+				NewRow.push_back(Right);
+			else NewRow[RightColumn] += Right;
+		}
+		else
+		{
+			assert(NewRow.empty());
+			NewRow.resize(1);
+			NewRow[0] = Width;
+		}
+	}
+#ifndef NDEBUG
+	for (unsigned int Top = 0; Top < Up; ++Top)
+	{
+		assert(Rows[Top].size() == 1);
+		assert(Rows[Top][0] == Width);
+	}
+	for (unsigned int Bottom = 0; Bottom < Down; ++Bottom)
+	{
+		assert(Rows[Rows.size() - 1 - Bottom].size() == 1);
+		assert(Rows[Rows.size() - 1 - Bottom][0] == Width);
+	}
+#endif
+}
+
+void RunData::Remove(unsigned int const Left, unsigned int const Right, unsigned int const Up, unsigned int const Down)
+{
+#ifndef NDEBUG
+	for (unsigned int Top = 0; Top < Up; ++Top)
+	{
+		assert(Rows[Top].size() == 1);
+		assert(Rows[Top][0] == Width);
+	}
+	for (unsigned int Bottom = 0; Bottom < Down; ++Bottom)
+	{
+		assert(Rows[Rows.size() - 1 - Bottom].size() == 1);
+		assert(Rows[Rows.size() - 1 - Bottom][0] == Width);
+	}
+#endif
+	Width -= Left + Right;
+	unsigned int const RemainingRows = Rows.size() - Up - Down;
+	for (unsigned int RemainingRow = 0; RemainingRow < RemainingRows; ++RemainingRow)
+	{
+		if (Up > 0)
+			Rows[RemainingRow].swap(Rows[RemainingRow + Up]);
+		assert(Rows[RemainingRow][0] >= Left);
+		Rows[RemainingRow][0] -= Left;
+		if (Right > 0)
+		{
+			unsigned int RightColumn = Rows[RemainingRow].size() - 1;
+			assert(!IsBlack(RightColumn));
+			assert(Rows[RemainingRow][RightColumn] >= Right);
+			if (Rows[RemainingRow][RightColumn] == Right)
+				Rows[RemainingRow].pop_back();
+			else Rows[RemainingRow][Rows[RemainingRow].size() - 1] -= Right;
+		}
+	}
+	Rows.resize(RemainingRows);
+}
+
+void RunData::Enlarge(unsigned int const Factor)
+{
+	assert(Factor >= 0);
+	unsigned int const OriginalHeight = Rows.size();
+	Rows.resize(OriginalHeight * Factor);
+	Width *= Factor;
+	for (unsigned int NewRowReverseIndex = 0; NewRowReverseIndex < OriginalHeight; ++NewRowReverseIndex)
+	{
+		unsigned int const NewRowIndex = Rows.size() - 1 - NewRowReverseIndex * Factor;
+		unsigned int const OldRowIndex = OriginalHeight - 1 - NewRowReverseIndex;
+		Rows[NewRowIndex].swap(Rows[OldRowIndex]);
+		assert(Rows[OldRowIndex].size() == 0);
+		for (auto &Run : Rows[NewRowIndex])
+			Run *= Factor;
+		for (unsigned int FactorStep = 1; FactorStep < Factor; ++FactorStep)
+			Rows[NewRowIndex - FactorStep] = Rows[NewRowIndex];
+	}
+}
+		
+void RunData::Shrink(unsigned int const Factor)
+{
+	assert(Width % Factor == 0);
+	assert(Rows.size() % Factor == 0);
+	unsigned int const NewHeight = Rows.size() / Factor;
+	Width /= Factor;
+	for (unsigned int RowIndex = 0; RowIndex < NewHeight; ++RowIndex)
+	{
+		auto &Row = Rows[RowIndex];
+		if (RowIndex > 1)
+			Row.swap(Rows[RowIndex * Factor]);
+		for (auto &Run : Row)
+			Run /= Factor;
+	}
+	Rows.resize(NewHeight);
 }
 		
 bool RunData::IsBlack(unsigned int const &Index) { return Index & 1; }
@@ -472,6 +620,50 @@ Change::CombineResult VerticalFlip::Combine(Change *Other)
 		return Change::CombineResult::Nullify;
 	return Change::CombineResult::Fail;
 }
+
+Shift::Shift(RunData &Base, int Right, int Down) : Base(Base), Right(Right), Down(Down) { }
+
+Change *Shift::Apply(bool &FlippedHorizontally, bool &FlippedVertically)
+{
+	if (Right != 0)
+	{
+		std::cout << "Shifting horizontally: " << Right << std::endl;
+		Base.ShiftHorizontally(Right);
+	}
+	if (Down != 0)
+	{
+		std::cout << "Shifting vertically: " << Down << std::endl;
+		Base.ShiftVertically(Down);
+	}
+	return new Shift(Base, -Right, -Down);
+}
+
+Change::CombineResult Shift::Combine(Change *Other)
+{
+	if (typeid(*this) == typeid(*Other))
+	{
+		Right += static_cast<Shift *>(Other)->Right;
+		Down += static_cast<Shift *>(Other)->Down;
+		return Change::CombineResult::Combine;
+	}
+	return Change::CombineResult::Fail;
+}
+
+/*Add::Add(RunData &Base);
+Change *Add::Apply(bool &FlippedHorizontally, bool &FlippedVertically);
+Change::CombineResult Add::Combine(Change *Other);
+
+Remove::Remove(RunData &Base);
+Change *Remove::Apply(bool &FlippedHorizontally, bool &FlippedVertically);
+Change::CombineResult Remove::Combine(Change *Other);
+
+Enlarge::Enlarge(RunData &Base);
+Change *Enlarge::Apply(bool &FlippedHorizontally, bool &FlippedVertically);
+Change::CombineResult Enlarge::Combine(Change *Other);
+
+Shrink::Shrink(RunData &Base);
+Change *Shrink::Apply(bool &FlippedHorizontally, bool &FlippedVertically);
+Change::CombineResult Shrink::Combine(Change *Other);*/
 
 //////////////////////////////////////////////////////////////////////////////////////////
 // Image manipulation/management
@@ -875,15 +1067,31 @@ FlatVector &Image::GetDisplaySize(void)
 void Image::FlipHorizontally(void)
 {
 	FinishMark();
-	Data->FlipHorizontally(); 
+	::HorizontalFlip FlipChange(*Data);
+	bool Unused1, Unused2;
+	Changes.AddUndo(FlipChange.Apply(Unused1, Unused2));
 	ModifiedSinceSave = true; 
 }
 
 void Image::FlipVertically(void)
 { 
 	FinishMark();
-	Data->FlipVertically(); 
+	::VerticalFlip FlipChange(*Data);
+	bool Unused1, Unused2;
+	Changes.AddUndo(FlipChange.Apply(Unused1, Unused2));
 	ModifiedSinceSave = true; 
+}
+		
+void Image::Shift(bool Large, int Right, int Down)
+{
+	FinishMark();
+	assert((Right != 0) || (Down != 0));
+	::Shift ShiftChange(*Data, 
+		Right * PixelsBelow * (Large ? 50 : 1),
+		Down * PixelsBelow * (Large ? 50 : 1));
+	bool Unused1, Unused2;
+	Changes.AddUndo(ShiftChange.Apply(Unused1, Unused2));
+	ModifiedSinceSave = true;
 }
 
 bool Image::HasChanges(void)

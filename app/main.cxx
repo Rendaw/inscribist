@@ -176,6 +176,21 @@ class MainWindow : public ActionHandler
 
 				gdk_window_process_updates(Canvas->window, false); // Unnecessary as long as adjustment updates do it
 			}
+			else if ((Event->keyval == GDK_KEY_Left) || 
+				(Event->keyval == GDK_KEY_Right) || 
+				(Event->keyval == GDK_KEY_Up) || 
+				(Event->keyval == GDK_KEY_Down))
+			{
+				// Rolling the image - holding shift reduces the shift to 1 screen pixel, otherwise 50 pixels or so
+				GdkRectangle Region = {0, 0, Canvas->allocation.width, Canvas->allocation.height};
+				gdk_window_invalidate_rect(Canvas->window, &Region, false);
+				Sketcher->Shift(Event->state & GDK_SHIFT_MASK ? false : true,
+					(Event->keyval == GDK_KEY_Left) ? -1 : 
+						((Event->keyval == GDK_KEY_Right) ? 1 : 0),
+					(Event->keyval == GDK_KEY_Up) ? -1 : 
+						((Event->keyval == GDK_KEY_Down) ? 1 : 0));
+				gdk_window_process_updates(Canvas->window, false);
+			}
 			else if (((Event->keyval == GDK_KEY_Z) || (Event->keyval == GDK_KEY_y) ||
 				(Event->keyval == GDK_KEY_z)) && (Event->state & GDK_CONTROL_MASK))
 			{
