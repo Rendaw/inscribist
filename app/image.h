@@ -41,20 +41,35 @@ class ChangeManager
 struct RunData
 {
 	public:
-		unsigned int const RowCount;
-		unsigned int const Width;
-		struct Run { unsigned int WhiteLength, BlackLength; /* White followed by black */ };
-		struct Row { unsigned int RunCount; Run *Runs; } *Rows;
+		typedef unsigned int Run; // Each row starts with white (first run is white)
+		typedef std::vector<Run> RunArray;
+		typedef std::vector<RunArray> RowArray;
+
+		RowArray Rows;
+		unsigned int Width;
 
 		RunData(const FlatVector &Size);
-		~RunData(void);
+		RunData(std::vector<std::vector<Run> > const &InitialRows);
 
-		// Manipulation
+		/// Manipulation
 		void Line(int Left, int Right, int const Y, bool Black);
+
+		// Places counts black pixels in Buffer from 0 to BufferWidth
+		// Counts come from the row of pixels on screen at X, Y (scale Scale)
 		void Combine(unsigned int *Buffer,
-			const unsigned int XStart, const unsigned int XEnd, const unsigned int Y, const unsigned int Scale);
+			unsigned int const BufferWidth, unsigned int const X, unsigned int const Y, unsigned int const Scale);
 		void FlipVertically(void);
 		void FlipHorizontally(void);
+		void ShiftHorizontally(int Columns);
+		void ShiftVertically(int Rows);
+
+		void Add(unsigned int const Left, unsigned int const Right, unsigned int const Up, unsigned int const Down);
+		void Remove(unsigned int const Left, unsigned int const Right, unsigned int const Up, unsigned int const Down);
+		void Enlarge(unsigned int const Factor);
+		void Shrink(unsigned int const Factor);
+	private:
+		static bool IsBlack(unsigned int const &Index);
+		void FlipSubsectionVertically(unsigned int const &Start, unsigned int const &End);
 };
 
 class Mark : public Change
@@ -67,8 +82,7 @@ class Mark : public Change
 		void AddLine(unsigned int const &LineNumber);
 	private:
 		RunData &Base;
-		RunData::Row *Rows;
-		const unsigned int RowCount; // Sanity check, technically not necessary
+		RunData::RowArray Rows;
 };
 
 class HorizontalFlip : public Change
@@ -91,6 +105,61 @@ class VerticalFlip : public Change
 		RunData &Base;
 };
 
+class Shift : public Change
+{
+	public:
+		Shift(RunData &Base, int Right, int Down);
+		Change *Apply(bool &FlippedHorizontally, bool &FlippedVertically);
+		CombineResult Combine(Change *Other);
+	private:
+		RunData &Base;
+		int Right, Down;
+};
+
+class Add : public Change
+{
+	public:
+		Add(RunData &Base, unsigned int Left, unsigned int Right, unsigned int Up, unsigned int Down);
+		Change *Apply(bool &FlippedHorizontally, bool &FlippedVertically);
+		CombineResult Combine(Change *Other);
+	private:
+		RunData &Base;
+		unsigned int Left, Right, Up, Down;
+};
+
+class Remove : public Change
+{
+	public:
+		Remove(RunData &Base);
+		Change *Apply(bool &FlippedHorizontally, bool &FlippedVertically);
+		CombineResult Combine(Change *Other);
+	private:
+		RunData &Base;
+		unsigned int Left, Right, Up, Down;
+};
+
+class Enlarge : public Change
+{
+	public:
+		Enlarge(RunData &Base);
+		Change *Apply(bool &FlippedHorizontally, bool &FlippedVertically);
+		CombineResult Combine(Change *Other);
+	private:
+		RunData &Base;
+		unsigned int Factor;
+};
+
+class Shrink : public Change
+{
+	public:
+		Shrink(RunData &Base);
+		Change *Apply(bool &FlippedHorizontally, bool &FlippedVertically);
+		CombineResult Combine(Change *Other);
+	private:
+		RunData &Base;
+		unsigned int Factor;
+};
+
 class Image
 {
 	public:
@@ -110,6 +179,8 @@ class Image
 
 		void FlipHorizontally(void);
 		void FlipVertically(void);
+
+		void Shift(bool Large, int Right, int Down);
 
 		bool HasChanges(void);
 		void Undo(bool &FlippedHorizontally, bool &FlippedVertically);
