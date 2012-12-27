@@ -440,6 +440,15 @@ class MainWindow : public Window
 			// Construct the window
 			SetDefaultSize({400, 440});
 			SetIcon(DataLocation.Select("/icon32.png"));
+			SetAttemptCloseHandler([&](void) -> bool
+			{
+				if (!ConfirmClose()) return false;
+				return true;
+			});
+			SetCloseHandler([](void)
+			{
+				gtk_main_quit();
+			});
 			SetResizeHandler([&]() { ResizeImageViewport(); });
 			WindowKeys.SetHandler(
 				[&](unsigned int KeyCode, unsigned int Modifier)
@@ -485,11 +494,11 @@ class MainWindow : public Window
 				Settings.DisplayPaper.Alpha * BackgroundColorScale + (1.0f - BackgroundColorScale)));
 			gtk_widget_set_extension_events(Canvas, GDK_EXTENSION_EVENTS_CURSOR);
 			gtk_widget_add_events(Canvas, GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK | GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK);
-			ResizeConnection = {Canvas, "configure-event", ResizeCanvasCallback, this};
-			DrawConnection = {Canvas, "expose-event", DrawCallback, this};
-			ClickConnection = {Canvas, "button-press-event", ClickCallback, this};
-			DeclickConnection = {Canvas, "button-release-event", DeclickCallback, this};
-			MoveConnection = {Canvas, "motion-notify-event", MoveCallback, this};
+			g_signal_connect(Canvas, "configure-event", G_CALLBACK(ResizeCanvasCallback), this);
+			g_signal_connect(Canvas, "expose-event", G_CALLBACK(DrawCallback), this);
+			g_signal_connect(Canvas, "button-press-event", G_CALLBACK(ClickCallback), this);
+			g_signal_connect(Canvas, "button-release-event", G_CALLBACK(DeclickCallback), this);
+			g_signal_connect(Canvas, "motion-notify-event", G_CALLBACK(MoveCallback), this);
 
 			gtk_scrolled_window_add_with_viewport(GTK_SCROLLED_WINDOW(Scroller), Canvas);
 			gtk_widget_show(Canvas);
@@ -672,8 +681,6 @@ class MainWindow : public Window
 
 		GtkWidget *Scroller, *Canvas;
 
-		ConnectionAnchor ResizeConnection, DrawConnection, ClickConnection, DeclickConnection, MoveConnection;
-
 		/// State
 		Image *Sketcher;
 
@@ -733,15 +740,7 @@ int main(int ArgumentCount, char **Arguments)
 	}
 
 	/// Create the window
-	{
-		::MainWindow *MainWindow = new ::MainWindow(Settings, Filename);
-		MainWindow->SetAttemptCloseHandler([MainWindow](void) -> bool
-		{
-			if (!MainWindow->ConfirmClose()) return false;
-			delete MainWindow;
-			return true;
-		});
-	}
+	::MainWindow MainWindow(Settings, Filename);
 	gtk_main();
 
 	return 0;
