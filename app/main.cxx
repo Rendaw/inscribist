@@ -2,7 +2,6 @@
 
 #include <gdk/gdk.h>
 #include <gdk/gdkkeysyms.h>
-#include <gtk/gtk.h>
 #include <string>
 #include <iostream>
 #include <cassert>
@@ -10,16 +9,33 @@
 
 #include "ren-general/vector.h"
 #include "ren-general/range.h"
+#include "ren-gtk/gtkwrapper.h"
 
-#include "gtkwrapper.h"
 #include "image.h"
 #include "settingsdialog.h"
 #include "localization.h"
 
 const int Revision = REVISION;
-extern const float SliderFactor, InverseSliderFactor;
 
-class MainWindow : public ActionHandler
+const float ColorMax = 65535;
+void SetBackgroundColor(GtkWidget *Widget, const Color &NewColor)
+{
+	GdkColor SetColor;
+	SetColor.red = ColorMax * NewColor.Red;
+	SetColor.green = ColorMax * NewColor.Green;
+	SetColor.blue = ColorMax * NewColor.Blue;
+	gtk_widget_modify_bg(Widget, GTK_STATE_NORMAL, &SetColor);
+}
+
+void SetAdjustment(GtkAdjustment *Adjustment, float CanvasPercent, float CanvasSize, float Padding, float ScreenSize)
+{
+	gtk_adjustment_set_value(Adjustment,
+		(CanvasPercent * CanvasSize + Padding) / ScreenSize *
+			(gtk_adjustment_get_upper(Adjustment) - gtk_adjustment_get_lower(Adjustment))  +
+			(gtk_adjustment_get_lower(Adjustment) - gtk_adjustment_get_page_size(Adjustment)) * 0.5f);
+}
+
+class MainWindow : public Window
 {
 	public:
 		// Auxiliary
@@ -30,7 +46,7 @@ class MainWindow : public ActionHandler
 				State.LastDevice = CurrentDevice;
 				State.Device = &Settings.GetDeviceSettings(gdk_device_get_name(CurrentDevice));
 				State.Brush = &Settings.GetBrushSettings(State.Device->Brush);
-				gtk_label_set_text(GTK_LABEL(ToolbarSizeIndicator), AsString((int)State.Brush->HeavyRadius).c_str());
+				ToolbarSizeIndicator.SetText(AsString((int)State.Brush->HeavyRadius));
 				SetBackgroundColor(ToolbarColorIndicator, State.Brush->Black ? Settings.DisplayInk : Settings.DisplayPaper);
 			}
 
@@ -99,11 +115,11 @@ class MainWindow : public ActionHandler
 		}
 
 		// Event handlers
-		gboolean Type(GdkEventKey *Event)
+		bool Type(unsigned int KeyCode, unsigned int Modifier)
 		{
-			if ((Event->keyval == GDK_KEY_Tab) ||
-				(Event->keyval == GDK_KEY_plus) ||
-				(Event->keyval == GDK_KEY_space))
+			if ((KeyCode == GDK_KEY_Tab) ||
+				(KeyCode == GDK_KEY_plus) ||
+				(KeyCode == GDK_KEY_space))
 			{
 				/// Toggle draw mode key pressed
 				if (State.Brush != NULL)
@@ -113,19 +129,19 @@ class MainWindow : public ActionHandler
 					SetBackgroundColor(ToolbarColorIndicator, State.Brush->Black ? Settings.DisplayInk : Settings.DisplayPaper);
 				}
 			}
-			else if (RangeD(GDK_KEY_0, GDK_KEY_9).Contains(Event->keyval))
+			else if (RangeD(GDK_KEY_0, GDK_KEY_9).Contains(KeyCode))
 			{
 				/// Change brush size key pressed
 				if (State.Device != NULL)
 				{
-					State.Device->Brush = Event->keyval - GDK_KEY_0;
+					State.Device->Brush = KeyCode - GDK_KEY_0;
 					State.Brush = &Settings.GetBrushSettings(State.Device->Brush);
 
-					gtk_label_set_text(GTK_LABEL(ToolbarSizeIndicator), AsString((int)State.Brush->HeavyRadius).c_str());
+					ToolbarSizeIndicator.SetText(AsString((int)State.Brush->HeavyRadius));
 					SetBackgroundColor(ToolbarColorIndicator, State.Brush->Black ? Settings.DisplayInk : Settings.DisplayPaper);
 				}
 			}
-			else if ((Event->keyval == GDK_bracketleft) || (Event->keyval == GDK_bracketright))
+			else if ((KeyCode == GDK_bracketleft) || (KeyCode == GDK_bracketright))
 			{
 				/// Zoom key pressed
 				// Save the focus
@@ -134,32 +150,31 @@ class MainWindow : public ActionHandler
 				LookingAtSet = true;
 
 				// Do the zoom
-				if (Event->keyval == GDK_bracketleft)
+				if (KeyCode == GDK_bracketleft)
 					Sketcher->Zoom(1);
 				else Sketcher->Zoom(-1);
 
 				// Resize the window
 				SizeCanvasAppropriately();
 			}
-			else if ((Event->keyval == GDK_KEY_s) && (Event->state & GDK_CONTROL_MASK))
+			else if ((KeyCode == GDK_KEY_s) && (Modifier & GDK_CONTROL_MASK))
 			{
 				/// Save combo
 				// If using a default file name, show a prompt
-				if (SaveFilename == NewFilename)
-					Act(SaveAction);
+				if (SaveFilename == NewFilename) SaveAs();
 				else // Otherwise, just save
 					Sketcher->Save(SaveFilename);
 			}
-			else if ((Event->keyval == GDK_KEY_S) && (Event->state & GDK_CONTROL_MASK))
+			else if ((KeyCode == GDK_KEY_S) && (Modifier & GDK_CONTROL_MASK))
 				/// Save-as combo
-				Act(SaveAction);
-			else if ((Event->keyval == GDK_KEY_v) || (Event->keyval == GDK_KEY_h))
+				SaveAs();
+			else if ((KeyCode == GDK_KEY_v) || (KeyCode == GDK_KEY_h))
 			{
 				/// Vertical and horizontal flipping
 				GdkRectangle Region = {0, 0, Canvas->allocation.width, Canvas->allocation.height};
 				gdk_window_invalidate_rect(Canvas->window, &Region, false);
 
-				if (Event->keyval == GDK_KEY_h)
+				if (KeyCode == GDK_KEY_h)
 				{
 					Sketcher->FlipHorizontally();
 					SetAdjustment(gtk_scrolled_window_get_hadjustment(GTK_SCROLLED_WINDOW(Scroller)),
@@ -176,23 +191,23 @@ class MainWindow : public ActionHandler
 
 				gdk_window_process_updates(Canvas->window, false); // Unnecessary as long as adjustment updates do it
 			}
-			else if ((Event->keyval == GDK_KEY_Left) || 
-				(Event->keyval == GDK_KEY_Right) || 
-				(Event->keyval == GDK_KEY_Up) || 
-				(Event->keyval == GDK_KEY_Down))
+			else if ((KeyCode == GDK_KEY_Left) || 
+				(KeyCode == GDK_KEY_Right) || 
+				(KeyCode == GDK_KEY_Up) || 
+				(KeyCode == GDK_KEY_Down))
 			{
 				// Rolling the image - holding shift reduces the shift to 1 screen pixel, otherwise 50 pixels or so
 				GdkRectangle Region = {0, 0, Canvas->allocation.width, Canvas->allocation.height};
 				gdk_window_invalidate_rect(Canvas->window, &Region, false);
-				Sketcher->Shift(Event->state & GDK_SHIFT_MASK ? false : true,
-					(Event->keyval == GDK_KEY_Left) ? -1 : 
-						((Event->keyval == GDK_KEY_Right) ? 1 : 0),
-					(Event->keyval == GDK_KEY_Up) ? -1 : 
-						((Event->keyval == GDK_KEY_Down) ? 1 : 0));
+				Sketcher->Shift(Modifier & GDK_SHIFT_MASK ? false : true,
+					(KeyCode == GDK_KEY_Left) ? -1 : 
+						((KeyCode == GDK_KEY_Right) ? 1 : 0),
+					(KeyCode == GDK_KEY_Up) ? -1 : 
+						((KeyCode == GDK_KEY_Down) ? 1 : 0));
 				gdk_window_process_updates(Canvas->window, false);
 			}
-			else if (((Event->keyval == GDK_KEY_Z) || (Event->keyval == GDK_KEY_y) ||
-				(Event->keyval == GDK_KEY_z)) && (Event->state & GDK_CONTROL_MASK))
+			else if (((KeyCode == GDK_KEY_Z) || (KeyCode == GDK_KEY_y) ||
+				(KeyCode == GDK_KEY_z)) && (Modifier & GDK_CONTROL_MASK))
 			{
 				/// Undo, redo
 				// May have to move the screen if it un-flips
@@ -201,7 +216,7 @@ class MainWindow : public ActionHandler
 				gdk_window_invalidate_rect(Canvas->window, &Region, false);
 
 				bool FlippedHorizontally, FlippedVertically;
-				if ((Event->keyval == GDK_KEY_Z) || (Event->keyval == GDK_KEY_y))
+				if ((KeyCode == GDK_KEY_Z) || (KeyCode == GDK_KEY_y))
 					Sketcher->Redo(FlippedHorizontally, FlippedVertically);
 				else Sketcher->Undo(FlippedHorizontally, FlippedVertically);
 
@@ -217,9 +232,9 @@ class MainWindow : public ActionHandler
 
 				gdk_window_process_updates(Canvas->window, false);
 			}
-			else return TRUE; // We didn't eat the key
+			else return false; // We didn't eat the key
 
-			return FALSE;
+			return true;
 		}
 
 		void Draw(GdkEventExpose *Event)
@@ -333,7 +348,7 @@ class MainWindow : public ActionHandler
 			}
 		}
 
-		void ResizeImageViewport(GdkEventConfigure *Event)
+		void ResizeImageViewport(void)
 		{
 			if (!LookingAtSet)
 				LookingAt = GetImageFocusPercent();
@@ -373,62 +388,46 @@ class MainWindow : public ActionHandler
 
 		gboolean ConfirmClose(void)
 		{
-			return !Sketcher->HasChanges() || Confirm(Window, Local("Quit Inscribist"),
+			return !Sketcher->HasChanges() || GTK::Confirm(*this, Local("Quit Inscribist"),
 				Local("Are you sure you wish to close Inscribist?  Any unsaved changes will be lost."));
 		}
 
-		void Close(void)
-		{
-			gtk_main_quit();
-		}
-
 		// Static callback farm
-		static gboolean KeyCallback(GtkWidget *Widget, GdkEventKey *Event, MainWindow *This)
-			{ return This->Type(Event); }
-
-		static gboolean DrawCallback(GtkWidget *Widget, GdkEventExpose *Event, MainWindow *This)
+		static gboolean DrawCallback(GtkWidget *, GdkEventExpose *Event, MainWindow *This)
 			{ This->Draw(Event); return TRUE; }
 
-		static gboolean ClickCallback(GtkWidget *Widget, GdkEventButton *Event, MainWindow *This)
+		static gboolean ClickCallback(GtkWidget *, GdkEventButton *Event, MainWindow *This)
 			{ This->Click(Event); return FALSE; }
 
-		static gboolean DeclickCallback(GtkWidget *Widget, GdkEventButton *Event, MainWindow *This)
+		static gboolean DeclickCallback(GtkWidget *, GdkEventButton *Event, MainWindow *This)
 			{ This->Declick(Event); return FALSE; }
 
-		static gboolean MoveCallback(GtkWidget *Widget, GdkEventMotion *Event, MainWindow *This)
+		static gboolean MoveCallback(GtkWidget *, GdkEventMotion *Event, MainWindow *This)
 			{ This->Move(Event); return FALSE; }
 
-		static gboolean ResizeCanvasCallback(GtkWidget *Widget, GdkEventConfigure *Event, MainWindow *This)
+		static gboolean ResizeCanvasCallback(GtkWidget *, GdkEventConfigure *Event, MainWindow *This)
 			{ This->ResizeImage(Event); return FALSE; }
-
-		static gboolean ResizeViewportCallback(GtkWidget *Widget, GdkEventConfigure *Event, MainWindow *This)
-			{ This->ResizeImageViewport(Event); return FALSE; }
 
 		static bool IdlePanCallback(MainWindow *This)
 			{ return This->PanUpdate(); }
 
-		static gboolean DeleteCallback(GtkWidget *Source, GdkEvent *Event, MainWindow *This)
-			{ return !This->ConfirmClose(); }
-
-		static void DestroyCallback(GtkWidget *Source, MainWindow *This)
-			{ This->Close(); }
-
 		// Constructor, the meat of our salad
 		MainWindow(SettingsData &Settings, const String &Filename) :
+			Window(Local("Inscribist")),
+			WindowKeys(*this),
 			Settings(Settings), SaveFilename(Filename),
-			Window(gtk_window_new(GTK_WINDOW_TOPLEVEL)),
 
 			EverythingBox(false, 0, 0),
 
 			ToolbarBox(true, 0, 0),
 			MainToolbar(),
-			NewAction(MainToolbar.Add(Local("New"), GTK_STOCK_CLEAR, this)),
-			OpenAction(MainToolbar.Add(Local("Open"), GTK_STOCK_OPEN, this)),
-			SaveAction(MainToolbar.Add(Local("Save"), GTK_STOCK_SAVE, this)),
-			ConfigureAction(MainToolbar.Add(Local("Settings"), GTK_STOCK_PREFERENCES, this)),
+			NewAction(Local("New"), diClear),
+			OpenAction(Local("Open"), diOpen),
+			SaveAction(Local("Save"), diSave),
+			ConfigureAction(Local("Settings"), diConfigure),
 			ToolbarIndicatorToolbar(gtk_toolbar_new()),
-			ToolbarSizeIndicator(gtk_label_new(NULL)),
 			ToolbarColorIndicator(gtk_drawing_area_new()),
+			ToolbarSizeIndicator("--"),
 
 			Scroller(gtk_scrolled_window_new(NULL, NULL)),
 			Canvas(gtk_drawing_area_new()),
@@ -439,17 +438,23 @@ class MainWindow : public ActionHandler
 			PanOffsetSet(false), ViewportUpdateSignalHandler(0)
 		{
 			// Construct the window
-			gtk_window_set_default_size(GTK_WINDOW(Window), 400, 440);
-			gtk_window_set_icon_from_file(GTK_WINDOW(Window), (DataLocation.Select("/icon32.png")).AsAbsoluteString().c_str(), NULL);
-			gtk_window_set_title(GTK_WINDOW(Window), Local("Inscribist").c_str());
-			gtk_container_set_reallocate_redraws(GTK_CONTAINER(Window), true);
-			g_signal_connect(G_OBJECT(Window), "configure-event", G_CALLBACK(ResizeViewportCallback), this);
-			g_signal_connect(G_OBJECT(Window), "delete-event", G_CALLBACK(DeleteCallback), this);
-			g_signal_connect(G_OBJECT(Window), "destroy", G_CALLBACK(DestroyCallback), this);
-			gtk_widget_add_events(Window, GDK_KEY_PRESS);
-			g_signal_connect(G_OBJECT(Window), "key-press-event", G_CALLBACK(KeyCallback), this);
+			SetDefaultSize({400, 440});
+			SetIcon(DataLocation.Select("/icon32.png"));
+			SetResizeHandler([&]() { ResizeImageViewport(); });
+			WindowKeys.SetHandler(
+				[&](unsigned int KeyCode, unsigned int Modifier)
+					{ return Type(KeyCode, Modifier); });
 
 			// Set up toolbar area
+			NewAction.SetAction([&]() { New(); });
+			MainToolbar.Add(NewAction);
+			OpenAction.SetAction([&]() { Open(); });
+			MainToolbar.Add(OpenAction);
+			SaveAction.SetAction([&]() { SaveAs(); });
+			MainToolbar.Add(SaveAction);
+			ConfigureAction.SetAction([&]() { Configure(); });
+			MainToolbar.Add(ConfigureAction);
+
 			ToolbarBox.AddFill(MainToolbar);
 
 			gtk_toolbar_set_show_arrow(GTK_TOOLBAR(ToolbarIndicatorToolbar), false);
@@ -480,11 +485,11 @@ class MainWindow : public ActionHandler
 				Settings.DisplayPaper.Alpha * BackgroundColorScale + (1.0f - BackgroundColorScale)));
 			gtk_widget_set_extension_events(Canvas, GDK_EXTENSION_EVENTS_CURSOR);
 			gtk_widget_add_events(Canvas, GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK | GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK);
-			g_signal_connect(G_OBJECT(Canvas), "configure-event", G_CALLBACK(ResizeCanvasCallback), this);
-			g_signal_connect(G_OBJECT(Canvas), "expose-event", G_CALLBACK(DrawCallback), this);
-			g_signal_connect(G_OBJECT(Canvas), "button-press-event", G_CALLBACK(ClickCallback), this);
-			g_signal_connect(G_OBJECT(Canvas), "button-release-event", G_CALLBACK(DeclickCallback), this);
-			g_signal_connect(G_OBJECT(Canvas), "motion-notify-event", G_CALLBACK(MoveCallback), this);
+			ResizeConnection = {Canvas, "configure-event", ResizeCanvasCallback, this};
+			DrawConnection = {Canvas, "expose-event", DrawCallback, this};
+			ClickConnection = {Canvas, "button-press-event", ClickCallback, this};
+			DeclickConnection = {Canvas, "button-release-event", DeclickCallback, this};
+			MoveConnection = {Canvas, "motion-notify-event", MoveCallback, this};
 
 			gtk_scrolled_window_add_with_viewport(GTK_SCROLLED_WINDOW(Scroller), Canvas);
 			gtk_widget_show(Canvas);
@@ -504,10 +509,9 @@ class MainWindow : public ActionHandler
 			// Assemble the window
 			EverythingBox.Add(ToolbarBox);
 			EverythingBox.AddFill(Scroller);
-			gtk_container_add(GTK_CONTAINER(Window), EverythingBox);
-			gtk_widget_show(EverythingBox);
+			Set(EverythingBox);
 
-			gtk_widget_show(Window);
+			Show();
 
 			// Forcibly enable all devices.  Forcible because we don't ask the user.
 			GList *InputDevices = gdk_devices_list();
@@ -517,6 +521,7 @@ class MainWindow : public ActionHandler
 
 				gdk_device_set_mode(CurrentDevice, GDK_MODE_SCREEN);
 			}
+			
 		}
 
 		~MainWindow(void)
@@ -524,170 +529,150 @@ class MainWindow : public ActionHandler
 			delete Sketcher;
 		}
 
-		void Run(void)
+		void New(void)
 		{
-			gtk_main();
+			bool DecidedTo = !Sketcher->HasChanges() || GTK::Confirm(*this, Local("New Image"),
+				Local("Are you sure you wish to clear the image?  Any unsaved changes will be lost."));
+			if (DecidedTo)
+			{
+				// Save the focus position for the canvas resize later
+				if (!LookingAtSet)
+					LookingAt = GetImageFocusPercent();
+				LookingAtSet = true;
+
+				// Clear and update settings
+				SaveFilename = NewFilename;
+
+				delete Sketcher;
+				Sketcher = new Image(Settings);
+
+				// Resize + refresh the canvas for the new image
+				SizeCanvasAppropriately();
+			}
 		}
 
-		void Act(void *Source)
+		void Open(void)
 		{
-			if (Source == NewAction)
+			FileDialog OpenDialog(Local("Open..."), Local("Inscribist images") + " (*" + Extension + ")", this, false);
+			if (!SaveFilename.empty()) OpenDialog.SetFile(SaveFilename);
+			OpenDialog.AddFilterPass("*" + Extension);
+			OpenDialog.SetDefaultSuffix(Extension);
+
+			String Out = OpenDialog.Run();
+			if (!Out.empty())
 			{
-				bool DecidedTo = !Sketcher->HasChanges() || Confirm(Window, Local("New Image"),
-					Local("Are you sure you wish to clear the image?  Any unsaved changes will be lost."));
-				if (DecidedTo)
-				{
-					// Save the focus position for the canvas resize later
-					if (!LookingAtSet)
-						LookingAt = GetImageFocusPercent();
-					LookingAtSet = true;
+				/// Load the image
+				// Save the focus, even though it doesn't mean much
+				if (!LookingAtSet)
+					LookingAt = GetImageFocusPercent();
+				LookingAtSet = true;
 
-					// Clear and update settings
-					SaveFilename = NewFilename;
+				// Clear and update settings
+				SaveFilename = Out;
 
-					delete Sketcher;
-					Sketcher = new Image(Settings);
+				// Load
+				delete Sketcher;
+				Sketcher = new Image(Settings, SaveFilename);
 
-					// Resize + refresh the canvas for the new image
-					SizeCanvasAppropriately();
-				}
-			}
-
-			if (Source == OpenAction)
-			{
-				GtkWidget *Dialog = gtk_file_chooser_dialog_new(Local("Open...").c_str(),
-					GTK_WINDOW(Window),
-					GTK_FILE_CHOOSER_ACTION_OPEN,
-					GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
-					GTK_STOCK_OPEN, GTK_RESPONSE_ACCEPT,
-					NULL);
-				if (!SaveFilename.empty())
-					gtk_file_chooser_set_filename(GTK_FILE_CHOOSER(Dialog), SaveFilename.c_str());
-
-				GtkFileFilter *SingleFilter = gtk_file_filter_new();
-				gtk_file_filter_set_name(SingleFilter, (Local("Inscribist images") + " (*" + Extension + ")").c_str());
-				gtk_file_chooser_add_filter(GTK_FILE_CHOOSER(Dialog), SingleFilter);
-				gtk_file_filter_add_pattern(SingleFilter, ("*" + Extension).c_str());
-
-				String Out;
-				if (gtk_dialog_run(GTK_DIALOG(Dialog)) == GTK_RESPONSE_ACCEPT)
-				{
-					char *PreOut = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(Dialog));
-					Out = PreOut;
-					g_free(PreOut);
-
-					/// Load the image
-					// Save the focus, even though it doesn't mean much
-					if (!LookingAtSet)
-						LookingAt = GetImageFocusPercent();
-					LookingAtSet = true;
-
-					// Clear and update settings
-					SaveFilename = Out;
-
-					// Load
-					delete Sketcher;
-					Sketcher = new Image(Settings, SaveFilename);
-
-					// Resize + refresh the canvas for the new image
-					SetBackgroundColor(Canvas, Color(Settings.DisplayPaper * BackgroundColorScale,
-						Settings.DisplayPaper.Alpha * BackgroundColorScale + (1.0f - BackgroundColorScale)));
-					SetBackgroundColor(ToolbarColorIndicator, State.Brush->Black ? Settings.DisplayInk : Settings.DisplayPaper);
-					SizeCanvasAppropriately();
-				}
-
-				gtk_widget_destroy(Dialog);
-			}
-
-			if (Source == SaveAction)
-			{
-				GtkWidget *Dialog = gtk_file_chooser_dialog_new(Local("Save...").c_str(),
-					GTK_WINDOW(Window),
-					GTK_FILE_CHOOSER_ACTION_SAVE,
-					GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
-					GTK_STOCK_SAVE, GTK_RESPONSE_ACCEPT,
-					NULL);
-				gtk_file_chooser_set_do_overwrite_confirmation(GTK_FILE_CHOOSER(Dialog), true);
-				gtk_file_chooser_set_filename(GTK_FILE_CHOOSER(Dialog), SaveFilename.c_str());
-
-				GtkFileFilter *NativeFilter = gtk_file_filter_new();
-				gtk_file_filter_set_name(NativeFilter, (Local("Inscribist images") + " (*" + Extension + ")").c_str());
-				gtk_file_chooser_add_filter(GTK_FILE_CHOOSER(Dialog), NativeFilter);
-				gtk_file_filter_add_pattern(NativeFilter, ("*" + Extension).c_str());
-
-				String ExportExtension(".png");
-				GtkFileFilter *ExportFilter = gtk_file_filter_new();
-				gtk_file_filter_set_name(ExportFilter, (Local("PNG image (export)") + " (*" + ExportExtension + ")").c_str());
-				gtk_file_chooser_add_filter(GTK_FILE_CHOOSER(Dialog), ExportFilter);
-				gtk_file_filter_add_pattern(ExportFilter, ("*" + ExportExtension).c_str());
-
-				if (gtk_dialog_run(GTK_DIALOG(Dialog)) == GTK_RESPONSE_ACCEPT)
-				{
-					if (gtk_file_chooser_get_filter(GTK_FILE_CHOOSER(Dialog)) == NativeFilter)
-					{
-						char *PreOut = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(Dialog));
-						SaveFilename = PreOut;
-						g_free(PreOut);
-
-						if ((SaveFilename.length() < Extension.size()) ||  (SaveFilename.substr(SaveFilename.length() - Extension.size(), String::npos) != Extension))
-							SaveFilename += Extension;
-
-						/// Save the image
-						Sketcher->Save(SaveFilename);
-					}
-					else
-					{
-						char *PreOut = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(Dialog));
-						String Out = PreOut;
-						g_free(PreOut);
-
-						if ((Out.length() < ExportExtension.size()) ||  (Out.substr(Out.length() - ExportExtension.size(), String::npos) != ExportExtension))
-							Out += ExportExtension;
-
-						/// Export the image
-						Sketcher->Export(Out);
-					}
-				}
-
-				gtk_widget_destroy(Dialog);
-			}
-
-			if (Source == ConfigureAction)
-			{
-				OpenSettings(Window, Settings);
-
+				// Resize + refresh the canvas for the new image
 				SetBackgroundColor(Canvas, Color(Settings.DisplayPaper * BackgroundColorScale,
 					Settings.DisplayPaper.Alpha * BackgroundColorScale + (1.0f - BackgroundColorScale)));
-
-				// Refresh after changing settings, since colors might have changed
-				if (!GDK_IS_WINDOW(Canvas->window)) return;
-				GdkRectangle Region = {0, 0, Canvas->allocation.width, Canvas->allocation.height};
-				gdk_window_invalidate_rect(Canvas->window, &Region, false);
-				gdk_window_process_updates(Canvas->window, false);
-
-				// Refresh setting stats in corner
-				if (State.Brush != NULL)
-				{
-					gtk_label_set_text(GTK_LABEL(ToolbarSizeIndicator), AsString((int)State.Brush->HeavyRadius).c_str());
-					SetBackgroundColor(ToolbarColorIndicator, State.Brush->Black ? Settings.DisplayInk : Settings.DisplayPaper);
-				}
+				SetBackgroundColor(ToolbarColorIndicator, State.Brush->Black ? Settings.DisplayInk : Settings.DisplayPaper);
+				SizeCanvasAppropriately();
 			}
 		}
+
+		void SaveAs(void)
+		{
+			GtkWidget *Dialog = gtk_file_chooser_dialog_new(Local("Save...").c_str(),
+				GTK_WINDOW((GtkWidget *)*this),
+				GTK_FILE_CHOOSER_ACTION_SAVE,
+				GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
+				GTK_STOCK_SAVE, GTK_RESPONSE_ACCEPT,
+				NULL);
+			gtk_file_chooser_set_do_overwrite_confirmation(GTK_FILE_CHOOSER(Dialog), true);
+			gtk_file_chooser_set_filename(GTK_FILE_CHOOSER(Dialog), SaveFilename.c_str());
+
+			GtkFileFilter *NativeFilter = gtk_file_filter_new();
+			gtk_file_filter_set_name(NativeFilter, (Local("Inscribist images") + " (*" + Extension + ")").c_str());
+			gtk_file_chooser_add_filter(GTK_FILE_CHOOSER(Dialog), NativeFilter);
+			gtk_file_filter_add_pattern(NativeFilter, ("*" + Extension).c_str());
+
+			String ExportExtension(".png");
+			GtkFileFilter *ExportFilter = gtk_file_filter_new();
+			gtk_file_filter_set_name(ExportFilter, (Local("PNG image (export)") + " (*" + ExportExtension + ")").c_str());
+			gtk_file_chooser_add_filter(GTK_FILE_CHOOSER(Dialog), ExportFilter);
+			gtk_file_filter_add_pattern(ExportFilter, ("*" + ExportExtension).c_str());
+
+			if (gtk_dialog_run(GTK_DIALOG(Dialog)) == GTK_RESPONSE_ACCEPT)
+			{
+				if (gtk_file_chooser_get_filter(GTK_FILE_CHOOSER(Dialog)) == NativeFilter)
+				{
+					char *PreOut = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(Dialog));
+					SaveFilename = PreOut;
+					g_free(PreOut);
+
+					if ((SaveFilename.length() < Extension.size()) ||  (SaveFilename.substr(SaveFilename.length() - Extension.size(), String::npos) != Extension))
+						SaveFilename += Extension;
+
+					/// Save the image
+					Sketcher->Save(SaveFilename);
+				}
+				else
+				{
+					char *PreOut = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(Dialog));
+					String Out = PreOut;
+					g_free(PreOut);
+
+					if ((Out.length() < ExportExtension.size()) ||  (Out.substr(Out.length() - ExportExtension.size(), String::npos) != ExportExtension))
+						Out += ExportExtension;
+
+					/// Export the image
+					Sketcher->Export(Out);
+				}
+			}
+
+			gtk_widget_destroy(Dialog);
+		}
+
+		void Configure(void)
+		{
+			OpenSettings(*this, Settings);
+
+			SetBackgroundColor(Canvas, Color(Settings.DisplayPaper * BackgroundColorScale,
+				Settings.DisplayPaper.Alpha * BackgroundColorScale + (1.0f - BackgroundColorScale)));
+
+			// Refresh after changing settings, since colors might have changed
+			if (!GDK_IS_WINDOW(Canvas->window)) return;
+			GdkRectangle Region = {0, 0, Canvas->allocation.width, Canvas->allocation.height};
+			gdk_window_invalidate_rect(Canvas->window, &Region, false);
+			gdk_window_process_updates(Canvas->window, false);
+
+			// Refresh setting stats in corner
+			if (State.Brush != NULL)
+			{
+				ToolbarSizeIndicator.SetText(AsString((int)State.Brush->HeavyRadius));
+				SetBackgroundColor(ToolbarColorIndicator, State.Brush->Black ? Settings.DisplayInk : Settings.DisplayPaper);
+			}
+		}
+
 	private:
+		KeyboardWidget WindowKeys;
 		SettingsData &Settings;
 		String SaveFilename;
 
 		/// Interface
-		GtkWidget *Window;
-
 		Layout EverythingBox;
 
 		Layout ToolbarBox;
 		Toolbar MainToolbar;
-		void *NewAction, *OpenAction, *SaveAction, *ConfigureAction;
-		GtkWidget *ToolbarIndicatorToolbar, *ToolbarSizeIndicator, *ToolbarColorIndicator;
+		ToolButton NewAction, OpenAction, SaveAction, ConfigureAction;
+		GtkWidget *ToolbarIndicatorToolbar, *ToolbarColorIndicator;
+		Label ToolbarSizeIndicator;
 
 		GtkWidget *Scroller, *Canvas;
+
+		ConnectionAnchor ResizeConnection, DrawConnection, ClickConnection, DeclickConnection, MoveConnection;
 
 		/// State
 		Image *Sketcher;
@@ -737,19 +722,27 @@ int main(int ArgumentCount, char **Arguments)
 			return 0;
 		}
 
-		std::cout << "Opening " << Filename << std::endl;
+		StandardStream << "Opening " << Filename << "\n" << OutputStream::Flush();
 	}
 
 	if (ArgumentCount > 4)
 	{
 		MemoryStream(Arguments[2]) >> Settings.ImageSize[0];
 		MemoryStream(Arguments[3]) >> Settings.ImageSize[1];
-		std::cout << "If creating a new file, use size " << Settings.ImageSize.AsString() << std::endl;
+		StandardStream << "If creating a new file, use size " << Settings.ImageSize.AsString() << "\n" << OutputStream::Flush();
 	}
 
 	/// Create the window
-	MainWindow MainWindow(Settings, Filename);
-	MainWindow.Run();
+	{
+		::MainWindow *MainWindow = new ::MainWindow(Settings, Filename);
+		MainWindow->SetAttemptCloseHandler([MainWindow](void) -> bool
+		{
+			if (!MainWindow->ConfirmClose()) return false;
+			delete MainWindow;
+			return true;
+		});
+	}
+	gtk_main();
 
 	return 0;
 }

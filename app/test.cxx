@@ -114,7 +114,7 @@ void CompareInternal(int Line, std::vector<unsigned int> const &Got, std::vector
 
 #define Compare(...) CompareInternal(__LINE__, __VA_ARGS__)
 
-int main(int argc, char **argv)
+int main(int, char **)
 {
 	// Test adding lines to rundata
 	{

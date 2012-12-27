@@ -5,7 +5,7 @@
 #include "localization.h"
 
 SettingsDialog::BrushSection::BrushSection(unsigned int Index, BrushSettings &Settings, const Color &InkColor, const Color &PaperColor) :
-	BrushFrame(gtk_frame_new(Local("Brush " + AsString(Index)).c_str())),
+	BrushFrame(Local("Brush " + AsString(Index))),
 	BrushBox(true, 3, 6),
 	BlackToggle(Settings.Black, InkColor, PaperColor),
 	SliderBox(false, 0, 3),
@@ -16,97 +16,91 @@ SettingsDialog::BrushSection::BrushSection(unsigned int Index, BrushSettings &Se
 	SliderBox.Add(HeavyRadiusSlider);
 	SliderBox.Add(LightRadiusSlider);
 	BrushBox.AddFill(SliderBox);
-
-	gtk_container_add(GTK_CONTAINER(BrushFrame), BrushBox);
-	gtk_widget_show(BrushBox);
+	BrushFrame.Set(BrushBox);
 }
 
 SettingsDialog::DeviceSection::DeviceSection(DeviceSettings &Settings, unsigned int BrushCount) :
 	Name(Settings.Name),
-	DeviceFrame(gtk_frame_new((Local("Device: ") + Settings.Name).c_str())),
+	DeviceFrame(Local("Device: ") + Settings.Name),
 	DeviceBox(false, 0, 3),
 	DampingSlider(Local("Damping: "), DampingRange, Settings.Damping),
 	BrushSelect(Local("Brush: "))
 {
 	for (unsigned int CurrentBrush = 0; CurrentBrush < BrushCount; CurrentBrush++)
 		BrushSelect.Add(Local("Brush " + AsString(CurrentBrush)));
-	BrushSelect.SetValue(Settings.Brush);
+	BrushSelect.Select(Settings.Brush);
 
 	DeviceBox.Add(DampingSlider);
 	DeviceBox.Add(BrushSelect);
-	gtk_container_add(GTK_CONTAINER(DeviceFrame), DeviceBox);
-	gtk_widget_show(DeviceBox);
+	DeviceFrame.Set(DeviceBox);
 }
 
 SettingsDialog::SettingsDialog(GtkWidget *Window, SettingsData &Settings) :
-	Dialog(gtk_dialog_new()), Settings(Settings),
-	Title(gtk_label_new(NULL)),
-	SettingsScroller(gtk_scrolled_window_new(NULL, NULL)),
+	Dialog(Window, Local("Settings"), {0, 500}), Settings(Settings),
+	SettingsTitle(Local("Settings")),
 	SettingsBox(false, 6, 2),
 
-	NewImageFrame(gtk_frame_new(Local("New image settings").c_str())),
+	NewImageFrame(Local("New image settings")),
 	NewImageBox(true, 3, 16),
 	NewImageWidth(Local("Width"), SizeRange.Including(Settings.ImageSize[0]), Settings.ImageSize[0]),
 	NewImageHeight(Local("Height"), SizeRange.Including(Settings.ImageSize[1]), Settings.ImageSize[1]),
 
-	DisplayFrame(gtk_frame_new(Local("Display settings").c_str())),
+	DisplayFrame(Local("Display settings")),
 	DisplayBox(true, 3, 16),
-	DisplayPaperColor(Local("Paper color: "), Settings.DisplayPaper, this),
-	DisplayInkColor(Local("Ink color: "), Settings.DisplayInk, this),
+	DisplayPaperColor(Local("Paper color: "), Settings.DisplayPaper, false),
+	DisplayInkColor(Local("Ink color: "), Settings.DisplayInk, false),
 	DisplayScale(Local("New image downscale: "), ScaleRange, ScaleRange.Constrain(Settings.DisplayScale)),
-	DisplaySeparator1(gtk_vseparator_new()), DisplaySeparator2(gtk_vseparator_new()),
 
-	ExportFrame(gtk_frame_new(Local("Export settings").c_str())),
+	ExportFrame(Local("Export settings")),
 	ExportBox(true, 3, 16),
-	ExportPaperColor(Local("Paper color: "), Settings.ExportPaper, NULL),
-	ExportInkColor(Local("Ink color: "), Settings.ExportInk, NULL),
+	ExportPaperColor(Local("Paper color: "), Settings.ExportPaper, true),
+	ExportInkColor(Local("Ink color: "), Settings.ExportInk, true),
 	ExportScale(Local("Downscale: "), ScaleRange, ScaleRange.Constrain(Settings.ExportScale)),
-	ExportSeparator1(gtk_vseparator_new()), ExportSeparator2(gtk_vseparator_new()),
 
-	Okay(Local("Okay"), GTK_STOCK_SAVE, this),
-	Cancel(Local("Cancel"), GTK_STOCK_CLOSE, this)
+	Okay(Local("Okay"), diSave),
+	Cancel(Local("Cancel"), diClose)
 {
-	/// Set up the dialog widget
-	gtk_window_set_default_size(GTK_WINDOW(Dialog), 0, 500);
-	gtk_window_set_title(GTK_WINDOW(Dialog), Local("Settings").c_str());
-	gtk_container_set_reallocate_redraws(GTK_CONTAINER(Dialog), true);
-	gtk_window_set_transient_for(GTK_WINDOW(Dialog), GTK_WINDOW(Window));
-	g_signal_connect_swapped(Dialog, "response", G_CALLBACK(gtk_widget_destroy), Dialog);
+	//g_signal_connect_swapped(Dialog, "response", G_CALLBACK(gtk_widget_destroy), Dialog); // Is this necessary?  Not found in ren-gtk
 
-	/// Populate the main dialog area
-	char *MarkupString = g_markup_printf_escaped("<span size=\"large\" weight=\"bold\">%s</span>", Local("Settings").c_str());
-	gtk_label_set_markup(GTK_LABEL(Title), MarkupString);
-	g_free(MarkupString);
-	gtk_box_pack_start(GTK_BOX(gtk_dialog_get_content_area(GTK_DIALOG(Dialog))), Title, false, true, 3);
-	gtk_widget_show(Title);
-
-	gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(SettingsScroller), GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC);
+	Add(SettingsTitle);
 
 	/// New image settings
 	NewImageBox.AddFill(NewImageWidth);
 	NewImageBox.AddFill(NewImageHeight);
-	gtk_container_add(GTK_CONTAINER(NewImageFrame), NewImageBox);
-	gtk_widget_show(NewImageBox);
+	NewImageFrame.Set(NewImageBox);
 	SettingsBox.Add(NewImageFrame);
 
 	/// Display settings
+	DisplayPaperColor.SetAction([&]()
+	{
+		for (std::vector<BrushSection *>::iterator CurrentSection = BrushSections.begin();
+			CurrentSection != BrushSections.end(); CurrentSection++)
+			(*CurrentSection)->BlackToggle.SetBackgroundColor(DisplayPaperColor.GetColor());
+	});
 	DisplayBox.AddFill(DisplayPaperColor);
-	DisplayBox.AddFill(DisplaySeparator1);
+
+	DisplayBox.AddSpace(); DisplayBox.AddSpacer(); DisplayBox.AddSpace();
+
+	DisplayInkColor.SetAction([&]()
+	{
+		for (std::vector<BrushSection *>::iterator CurrentSection = BrushSections.begin();
+			CurrentSection != BrushSections.end(); CurrentSection++)
+			(*CurrentSection)->BlackToggle.SetForegroundColor(DisplayInkColor.GetColor());
+	});
 	DisplayBox.AddFill(DisplayInkColor);
-	DisplayBox.AddFill(DisplaySeparator2);
+
+	DisplayBox.AddSpace(); DisplayBox.AddSpacer(); DisplayBox.AddSpace();
 	DisplayBox.AddFill(DisplayScale);
-	gtk_container_add(GTK_CONTAINER(DisplayFrame), DisplayBox);
-	gtk_widget_show(DisplayBox);
+	DisplayFrame.Set(DisplayBox);
 	SettingsBox.Add(DisplayFrame);
 
 	/// Export settings
 	ExportBox.AddFill(ExportPaperColor);
-	ExportBox.AddFill(ExportSeparator1);
+	ExportBox.AddSpace(); ExportBox.AddSpacer(); ExportBox.AddSpace();
 	ExportBox.AddFill(ExportInkColor);
-	ExportBox.AddFill(ExportSeparator2);
+	ExportBox.AddSpace(); ExportBox.AddSpacer(); ExportBox.AddSpace();
 	ExportBox.AddFill(ExportScale);
-	gtk_container_add(GTK_CONTAINER(ExportFrame), ExportBox);
-	gtk_widget_show(ExportBox);
+	ExportFrame.Set(ExportBox);
 	SettingsBox.Add(ExportFrame);
 
 	/// Brush settings
@@ -130,47 +124,11 @@ SettingsDialog::SettingsDialog(GtkWidget *Window, SettingsData &Settings) :
 		SettingsBox.Add(DeviceSections.back()->DeviceFrame);
 	}
 
-	gtk_scrolled_window_add_with_viewport(GTK_SCROLLED_WINDOW(SettingsScroller), SettingsBox);
-	gtk_widget_show(SettingsBox);
-	gtk_box_pack_start(GTK_BOX(gtk_dialog_get_content_area(GTK_DIALOG(Dialog))), SettingsScroller, true, true, 0);
-	gtk_widget_show(SettingsScroller);
+	SettingsScroller.Set(SettingsBox);
+	AddFill(SettingsScroller);
 
 	/// Populate the dialog actions
-	gtk_box_pack_start(GTK_BOX(gtk_dialog_get_action_area(GTK_DIALOG(Dialog))), Okay, false, true, 0);
-	gtk_widget_show(Okay);
-
-	gtk_box_pack_start(GTK_BOX(gtk_dialog_get_action_area(GTK_DIALOG(Dialog))), Cancel, false, true, 0);
-	gtk_widget_show(Cancel);
-}
-
-SettingsDialog::~SettingsDialog(void)
-{
-	for (std::vector<DeviceSection *>::iterator CurrentDeviceSection = DeviceSections.begin();
-		CurrentDeviceSection != DeviceSections.end(); CurrentDeviceSection++)
-		delete *CurrentDeviceSection;
-
-	for (std::vector<BrushSection *>::iterator CurrentBrushSection = BrushSections.begin();
-		CurrentBrushSection != BrushSections.end(); CurrentBrushSection++)
-		delete *CurrentBrushSection;
-}
-
-void SettingsDialog::Act(void *Instigator)
-{
-	if (Instigator == &DisplayPaperColor)
-	{
-		for (std::vector<BrushSection *>::iterator CurrentSection = BrushSections.begin();
-			CurrentSection != BrushSections.end(); CurrentSection++)
-			(*CurrentSection)->BlackToggle.SetBackgroundColor(DisplayPaperColor.GetColor());
-	}
-
-	if (Instigator == &DisplayInkColor)
-	{
-		for (std::vector<BrushSection *>::iterator CurrentSection = BrushSections.begin();
-			CurrentSection != BrushSections.end(); CurrentSection++)
-			(*CurrentSection)->BlackToggle.SetForegroundColor(DisplayInkColor.GetColor());
-	}
-
-	if (Instigator == &Okay)
+	Okay.SetAction([&]()
 	{
 		Settings.ImageSize[0] = NewImageWidth.GetValue();
 		Settings.ImageSize[1] = NewImageHeight.GetValue();
@@ -194,26 +152,31 @@ void SettingsDialog::Act(void *Instigator)
 		{
 			DeviceSettings &DeviceSettings = Settings.GetDeviceSettings((*CurrentDeviceSection)->Name);
 			DeviceSettings.Damping = (*CurrentDeviceSection)->DampingSlider.GetValue();
-			DeviceSettings.Brush = (*CurrentDeviceSection)->BrushSelect.GetValue();
+			DeviceSettings.Brush = (*CurrentDeviceSection)->BrushSelect.GetSelection();
 		}
 
 		Settings.Save();
-		gtk_dialog_response(GTK_DIALOG(Dialog), GTK_RESPONSE_NONE);
-		return;
-	}
-
-	if (Instigator == &Cancel)
-	{
-		gtk_dialog_response(GTK_DIALOG(Dialog), GTK_RESPONSE_NONE);
-		return;
-	}
+		Close();
+	});
+	AddAction(Okay);
+	
+	Cancel.SetAction([&]() { Close(); });
+	AddAction(Cancel);
 }
 
-SettingsDialog::operator GtkWidget*()
-	{ return Dialog; }
+SettingsDialog::~SettingsDialog(void)
+{
+	for (std::vector<DeviceSection *>::iterator CurrentDeviceSection = DeviceSections.begin();
+		CurrentDeviceSection != DeviceSections.end(); CurrentDeviceSection++)
+		delete *CurrentDeviceSection;
+
+	for (std::vector<BrushSection *>::iterator CurrentBrushSection = BrushSections.begin();
+		CurrentBrushSection != BrushSections.end(); CurrentBrushSection++)
+		delete *CurrentBrushSection;
+}
 
 void OpenSettings(GtkWidget *Window, SettingsData &Settings)
 {
 	SettingsDialog Dialog(Window, Settings);
-	gtk_dialog_run(GTK_DIALOG((GtkWidget *)Dialog));
+	Dialog.Run();
 }

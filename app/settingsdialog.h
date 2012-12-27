@@ -3,46 +3,41 @@
 #ifndef settingsdialog_h
 #define settingsdialog_h
 
-#include "gtkwrapper.h"
+#include "ren-gtk/gtkwrapper.h"
 #include "settings.h"
 
-class SettingsDialog : public ActionHandler
+class SettingsDialog : public Dialog
 {
 	public:
 		SettingsDialog(GtkWidget *Window, SettingsData &Settings);
 		~SettingsDialog(void);
 		operator GtkWidget*();
 
-		void Act(void *Instigator);
-
 	private:
-		GtkWidget *Dialog;
 		SettingsData &Settings;
 
-		GtkWidget *Title;
-		GtkWidget *SettingsScroller;
+		Title SettingsTitle;
+		Scroller SettingsScroller;
 		Layout SettingsBox;
 
-		GtkWidget *NewImageFrame;
+		LayoutBorder NewImageFrame;
 		Layout NewImageBox;
-		Spinner NewImageWidth, NewImageHeight;
+		Wheel NewImageWidth, NewImageHeight;
 
-		GtkWidget *DisplayFrame;
+		LayoutBorder DisplayFrame;
 		Layout DisplayBox;
 		ColorButton DisplayPaperColor, DisplayInkColor;
-		Spinner DisplayScale;
-		GtkWidget *DisplaySeparator1, *DisplaySeparator2;
+		Wheel DisplayScale;
 
-		GtkWidget *ExportFrame;
+		LayoutBorder ExportFrame;
 		Layout ExportBox;
 		ColorButton ExportPaperColor, ExportInkColor;
-		Spinner ExportScale;
-		GtkWidget *ExportSeparator1, *ExportSeparator2;
+		Wheel ExportScale;
 
 		struct BrushSection
 		{
 			BrushSection(unsigned int Index, BrushSettings &Settings, const Color &InkColor, const Color &PaperColor);
-			GtkWidget *BrushFrame;
+			LayoutBorder BrushFrame;
 			Layout BrushBox;
 			ColorToggleButton BlackToggle;
 			Layout SliderBox;
@@ -56,10 +51,10 @@ class SettingsDialog : public ActionHandler
 			DeviceSection(DeviceSettings &Settings, unsigned int BrushCount);
 			String const Name;
 
-			GtkWidget *DeviceFrame;
+			LayoutBorder DeviceFrame;
 			Layout DeviceBox;
 			Slider DampingSlider;
-			Dropdown BrushSelect;
+			List BrushSelect;
 		};
 		std::vector<DeviceSection *> DeviceSections;
 
