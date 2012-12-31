@@ -52,7 +52,7 @@ struct RunData
 		RunData(std::vector<std::vector<Run> > const &InitialRows);
 
 		/// Manipulation
-		void Line(int Left, int Right, int const Y, bool Black);
+		void Line(int Left, int Right, unsigned int const &Y, bool Black);
 
 		// Places counts black pixels in Buffer from 0 to BufferWidth
 		// Counts come from the row of pixels on screen at X, Y (scale Scale)

@@ -11,6 +11,8 @@
 
 #include "localization.h"
 
+#include "ren-general/endian.h"
+
 unsigned int const MaxUndoLevels = 50;
 
 Change::~Change(void) {}
@@ -23,7 +25,6 @@ void ChangeManager::AddUndo(Change *Undo)
 	if (!CanUndo() || ((CombineResult = Undos.back()->Combine(Undo)) == Change::CombineResult::Fail))
 	{
 		Undos.push_back(Undo);
-		std::cout << "Undo levels: " << Undos.size() << std::endl;
 		if (Undos.size() > MaxUndoLevels)
 			Undos.pop_front();
 		return;
@@ -97,10 +98,9 @@ RunData::RunData(std::vector<std::vector<Run> > const &InitialRows) :
 	Rows(InitialRows), Width(CalculateWidth(Rows))
 	{ }
 
-void RunData::Line(int UnclippedLeft, int UnclippedRight, int const Y, bool Black)
+void RunData::Line(int UnclippedLeft, int UnclippedRight, unsigned int const &Y, bool Black)
 {
 	// Validate parameters
-	assert(Y >= 0);
 	assert(Y < Rows.size());
 
 	unsigned int const Right = RangeD(0, Width).Constrain(UnclippedRight);
@@ -760,16 +760,24 @@ Image::Image(SettingsData &Settings, String const &Filename) :
 	char Identifier2[32];
 	memset(Identifier2, 0, 32);
 	strncpy(Identifier2, "inscribble v01\n", 32);
+	
+	char Identifier3[32];
+	memset(Identifier3, 0, 32);
+	strncpy(Identifier3, "inscribble v02\n", 32);
 
 	char LoadedIdentifier[32];
 	fread(LoadedIdentifier, sizeof(char), 32, Input);
 
-	bool Version1 = false;
+	unsigned int Version = 3;
 	if (strncmp(LoadedIdentifier, Identifier1, 32) == 0)
 	{
-		Version1 = true;
+		Version = 0;
 	}
-	else if (strncmp(LoadedIdentifier, Identifier2, 32) != 0)
+	else if (strncmp(LoadedIdentifier, Identifier2, 32) == 0)
+	{
+		Version = 1;
+	}
+	else if (strncmp(LoadedIdentifier, Identifier3, 32) != 0)
 	{
 		std::cerr << Local("The version string in the file is wrong.  Inscribist probably can't open this file.") << std::endl;
 		return;
@@ -787,34 +795,75 @@ Image::Image(SettingsData &Settings, String const &Filename) :
 		return;
 	}
 
-	/// If v2 or greater, load image colors
-	if (!Version1)
+	if (Version >= 2)
 	{
-		BZ2_bzRead(&Error, CompressInput, &Settings.DisplayPaper, sizeof(Settings.DisplayPaper));
-		BZ2_bzRead(&Error, CompressInput, &Settings.DisplayInk, sizeof(Settings.DisplayInk));
-		BZ2_bzRead(&Error, CompressInput, &Settings.ExportPaper, sizeof(Settings.ExportPaper));
-		BZ2_bzRead(&Error, CompressInput, &Settings.ExportInk, sizeof(Settings.ExportInk));
+		LittleEndian<Color> DisplayPaper, DisplayInk, ExportPaper, ExportInk;
+		BZ2_bzRead(&Error, CompressInput, &DisplayPaper, sizeof(DisplayPaper));
+		BZ2_bzRead(&Error, CompressInput, &DisplayInk, sizeof(DisplayInk));
+		BZ2_bzRead(&Error, CompressInput, &ExportPaper, sizeof(ExportPaper));
+		BZ2_bzRead(&Error, CompressInput, &ExportInk, sizeof(ExportInk));
+		Settings.DisplayPaper = DisplayPaper;
+		Settings.DisplayInk = DisplayInk;
+		Settings.ExportPaper = ExportPaper;
+		Settings.ExportInk = ExportInk;
+
+		/// Read in the image data
+		LittleEndian<uint32_t> StandardizedRowCount, StandardizedWidth;
+		BZ2_bzRead(&Error, CompressInput, &StandardizedRowCount, sizeof(StandardizedRowCount));
+		BZ2_bzRead(&Error, CompressInput, &StandardizedWidth, sizeof(StandardizedWidth));
+		uint32_t RowCount = StandardizedRowCount;
+
+		ImageSpace.Size[0] = StandardizedWidth;
+		ImageSpace.Size[1] = StandardizedRowCount;
+		Data = new RunData(ImageSpace.Size);
+
+		Settings.ImageSize = ImageSpace.Size;
+
+		DisplaySpace.Size = ImageSpace.Size / (float)PixelsBelow;
+
+		for (uint32_t CurrentRow = 0; CurrentRow < RowCount; CurrentRow++)
+		{
+			LittleEndian<uint32_t> StandardizedRunCount;
+			BZ2_bzRead(&Error, CompressInput, &StandardizedRunCount, sizeof(StandardizedRunCount));
+			uint32_t RunCount = StandardizedRunCount;
+
+			std::vector<LittleEndian<RunData::Run> > Runs;
+			Runs.resize(RunCount);
+			BZ2_bzRead(&Error, CompressInput, &Runs[0], sizeof(LittleEndian<RunData::Run>) * RunCount);
+			Data->Rows[CurrentRow].reserve(RunCount);
+			for (auto const &Run : Runs) Data->Rows[CurrentRow].push_back(Run);
+		}
 	}
-
-	/// Read in the image data
-	uint32_t RowCount, Width;
-	BZ2_bzRead(&Error, CompressInput, &RowCount, sizeof(RowCount));
-	BZ2_bzRead(&Error, CompressInput, &Width, sizeof(Width));
-
-	ImageSpace.Size[0] = Width;
-	ImageSpace.Size[1] = RowCount;
-	Data = new RunData(ImageSpace.Size);
-
-	Settings.ImageSize = ImageSpace.Size;
-
-	DisplaySpace.Size = ImageSpace.Size / (float)PixelsBelow;
-
-	for (uint32_t CurrentRow = 0; CurrentRow < RowCount; CurrentRow++)
+	else
 	{
-		uint32_t RunCount;
-		BZ2_bzRead(&Error, CompressInput, &RunCount, sizeof(RunCount));
-		Data->Rows[CurrentRow].resize(RunCount);
-		BZ2_bzRead(&Error, CompressInput, &Data->Rows[CurrentRow][0], sizeof(RunData::Run) * RunCount);
+		if (Version >= 1)
+		{
+			BZ2_bzRead(&Error, CompressInput, &Settings.DisplayPaper, sizeof(Settings.DisplayPaper));
+			BZ2_bzRead(&Error, CompressInput, &Settings.DisplayInk, sizeof(Settings.DisplayInk));
+			BZ2_bzRead(&Error, CompressInput, &Settings.ExportPaper, sizeof(Settings.ExportPaper));
+			BZ2_bzRead(&Error, CompressInput, &Settings.ExportInk, sizeof(Settings.ExportInk));
+		}
+
+		/// Read in the image data
+		uint32_t RowCount, Width;
+		BZ2_bzRead(&Error, CompressInput, &RowCount, sizeof(RowCount));
+		BZ2_bzRead(&Error, CompressInput, &Width, sizeof(Width));
+
+		ImageSpace.Size[0] = Width;
+		ImageSpace.Size[1] = RowCount;
+		Data = new RunData(ImageSpace.Size);
+
+		Settings.ImageSize = ImageSpace.Size;
+
+		DisplaySpace.Size = ImageSpace.Size / (float)PixelsBelow;
+
+		for (uint32_t CurrentRow = 0; CurrentRow < RowCount; CurrentRow++)
+		{
+			uint32_t RunCount;
+			BZ2_bzRead(&Error, CompressInput, &RunCount, sizeof(RunCount));
+			Data->Rows[CurrentRow].resize(RunCount);
+			BZ2_bzRead(&Error, CompressInput, &Data->Rows[CurrentRow][0], sizeof(RunData::Run) * RunCount);
+		}
 	}
 
 	/// Close the file and finish up.
@@ -857,7 +906,7 @@ bool Image::Save(String const &Filename)
 	}
 
 	/// Write paper/export colors
-	Color DisplayPaper = Settings.DisplayPaper, DisplayInk = Settings.DisplayInk,
+	LittleEndian<Color> DisplayPaper = Settings.DisplayPaper, DisplayInk = Settings.DisplayInk,
 		ExportPaper = Settings.ExportPaper, ExportInk = Settings.ExportInk;
 
 	BZ2_bzWrite(&Error, CompressOutput, &DisplayPaper, sizeof(DisplayPaper));
@@ -866,17 +915,22 @@ bool Image::Save(String const &Filename)
 	BZ2_bzWrite(&Error, CompressOutput, &ExportInk, sizeof(ExportInk));
 
 	/// Write the image data
-	uint32_t RowCountBuffer = Data->Rows.size();
+	LittleEndian<uint32_t> RowCountBuffer = Data->Rows.size();
 	BZ2_bzWrite(&Error, CompressOutput, &RowCountBuffer, sizeof(RowCountBuffer));
-	uint32_t WidthBuffer = Data->Width;
+	LittleEndian<uint32_t> WidthBuffer = Data->Width;
 	BZ2_bzWrite(&Error, CompressOutput, &WidthBuffer, sizeof(WidthBuffer));
+	
+	std::vector<LittleEndian<uint32_t> > Runs;
 	for (uint32_t CurrentRow = 0; CurrentRow < Data->Rows.size(); CurrentRow++)
 	{
-		uint32_t RunCountBuffer = Data->Rows[CurrentRow].size();
-		BZ2_bzWrite(&Error, CompressOutput, &RunCountBuffer, sizeof(RunCountBuffer));
+		uint32_t NativeRunCount = Data->Rows[CurrentRow].size();
+		LittleEndian<uint32_t> RunCount = NativeRunCount;
+		BZ2_bzWrite(&Error, CompressOutput, &RunCount, sizeof(RunCount));
 
-		uint32_t RunBufferSize = sizeof(RunData::Run) * Data->Rows[CurrentRow].size();
-		BZ2_bzWrite(&Error, CompressOutput, &Data->Rows[CurrentRow][0], RunBufferSize);
+		Runs.clear();
+		Runs.reserve(Data->Rows[CurrentRow].size());
+		for (auto const &Run : Data->Rows[CurrentRow]) Runs.push_back(Run);
+		BZ2_bzWrite(&Error, CompressOutput, &Runs[0], sizeof(LittleEndian<uint32_t>) * Runs.size());
 	}
 
 	/// Close everything
