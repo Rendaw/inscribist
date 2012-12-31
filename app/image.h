@@ -130,7 +130,7 @@ class Add : public Change
 class Remove : public Change
 {
 	public:
-		Remove(RunData &Base);
+		Remove(RunData &Base, unsigned int Left, unsigned int Right, unsigned int Up, unsigned int Down);
 		Change *Apply(bool &FlippedHorizontally, bool &FlippedVertically);
 		CombineResult Combine(Change *Other);
 	private:
@@ -141,7 +141,7 @@ class Remove : public Change
 class Enlarge : public Change
 {
 	public:
-		Enlarge(RunData &Base);
+		Enlarge(RunData &Base, unsigned int const &Factor);
 		Change *Apply(bool &FlippedHorizontally, bool &FlippedVertically);
 		CombineResult Combine(Change *Other);
 	private:
@@ -152,7 +152,7 @@ class Enlarge : public Change
 class Shrink : public Change
 {
 	public:
-		Shrink(RunData &Base);
+		Shrink(RunData &Base, unsigned int const &Factor);
 		Change *Apply(bool &FlippedHorizontally, bool &FlippedVertically);
 		CombineResult Combine(Change *Other);
 	private:
@@ -175,12 +175,15 @@ class Image
 		bool Render(Region const &Invalid, cairo_t *Destination);
 
 		int Zoom(int Amount);
+		FlatVector &GetSize(void);
 		FlatVector &GetDisplaySize(void);
 
 		void FlipHorizontally(void);
 		void FlipVertically(void);
 
 		void Shift(bool Large, int Right, int Down);
+		void Scale(unsigned int const &Factor);
+		void Add(unsigned int const &Left, unsigned int const &Right, unsigned int const &Up, unsigned int const &Down);
 
 		bool HasChanges(void);
 		void Undo(bool &FlippedHorizontally, bool &FlippedVertically);

@@ -11,7 +11,6 @@ class SettingsDialog : public Dialog
 	public:
 		SettingsDialog(GtkWidget *Window, SettingsData &Settings);
 		~SettingsDialog(void);
-		operator GtkWidget*();
 
 	private:
 		SettingsData &Settings;
@@ -46,13 +45,11 @@ class SettingsDialog : public Dialog
 		};
 		std::vector<BrushSection *> BrushSections;
 
-		struct DeviceSection
+		struct DeviceSection : public LayoutBorder
 		{
 			DeviceSection(DeviceSettings &Settings, unsigned int BrushCount);
 			String const Name;
 
-			LayoutBorder DeviceFrame;
-			Layout DeviceBox;
 			Slider DampingSlider;
 			List BrushSelect;
 		};

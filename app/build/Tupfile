@@ -9,6 +9,7 @@ Sources =
 	'../main.cxx',
 	'../settingsdialog.cxx',
 	'../settings.cxx',
+	'../expanddialog.cxx',
 	'../cursorstate.cxx',
 	'../image.cxx',
 }

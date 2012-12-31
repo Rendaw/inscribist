@@ -9,8 +9,8 @@ SettingsDialog::BrushSection::BrushSection(unsigned int Index, BrushSettings &Se
 	BrushBox(true, 3, 6),
 	BlackToggle(Settings.Black, InkColor, PaperColor),
 	SliderBox(false, 0, 3),
-	HeavyRadiusSlider(Local("Size: "), HeavyRadiusRange, Settings.HeavyRadius),
-	LightRadiusSlider(Local("Light size: "), LightRadiusRange, Settings.LightRadius)
+	HeavyRadiusSlider(Local("Heavy radius: "), HeavyRadiusRange, Settings.HeavyRadius),
+	LightRadiusSlider(Local("Light radius: "), LightRadiusRange, Settings.LightRadius)
 {
 	BrushBox.Add(BlackToggle);
 	SliderBox.Add(HeavyRadiusSlider);
@@ -20,19 +20,18 @@ SettingsDialog::BrushSection::BrushSection(unsigned int Index, BrushSettings &Se
 }
 
 SettingsDialog::DeviceSection::DeviceSection(DeviceSettings &Settings, unsigned int BrushCount) :
+	LayoutBorder(Local("Device: ") + Settings.Name),
 	Name(Settings.Name),
-	DeviceFrame(Local("Device: ") + Settings.Name),
-	DeviceBox(false, 0, 3),
 	DampingSlider(Local("Damping: "), DampingRange, Settings.Damping),
 	BrushSelect(Local("Brush: "))
 {
+	Layout DeviceBox(false, 0, 3);
+	DeviceBox.Add(DampingSlider);
 	for (unsigned int CurrentBrush = 0; CurrentBrush < BrushCount; CurrentBrush++)
 		BrushSelect.Add(Local("Brush " + AsString(CurrentBrush)));
 	BrushSelect.Select(Settings.Brush);
-
-	DeviceBox.Add(DampingSlider);
 	DeviceBox.Add(BrushSelect);
-	DeviceFrame.Set(DeviceBox);
+	Set(DeviceBox);
 }
 
 SettingsDialog::SettingsDialog(GtkWidget *Window, SettingsData &Settings) :
@@ -49,7 +48,7 @@ SettingsDialog::SettingsDialog(GtkWidget *Window, SettingsData &Settings) :
 	DisplayBox(true, 3, 16),
 	DisplayPaperColor(Local("Paper color: "), Settings.DisplayPaper, false),
 	DisplayInkColor(Local("Ink color: "), Settings.DisplayInk, false),
-	DisplayScale(Local("New image downscale: "), ScaleRange, ScaleRange.Constrain(Settings.DisplayScale)),
+	DisplayScale(Local("Downscale: "), ScaleRange, ScaleRange.Constrain(Settings.DisplayScale)),
 
 	ExportFrame(Local("Export settings")),
 	ExportBox(true, 3, 16),
@@ -60,7 +59,7 @@ SettingsDialog::SettingsDialog(GtkWidget *Window, SettingsData &Settings) :
 	Okay(Local("Okay"), diSave),
 	Cancel(Local("Cancel"), diClose)
 {
-	//g_signal_connect_swapped(Dialog, "response", G_CALLBACK(gtk_widget_destroy), Dialog); // Is this necessary?  Not found in ren-gtk
+	//g_signal_connect_swapped((GtkWidget *)*this, "response", G_CALLBACK(gtk_widget_destroy), (GtkWidget *)*this); // Is this necessary?  Not found in ren-gtk
 
 	Add(SettingsTitle);
 
@@ -78,9 +77,7 @@ SettingsDialog::SettingsDialog(GtkWidget *Window, SettingsData &Settings) :
 			(*CurrentSection)->BlackToggle.SetBackgroundColor(DisplayPaperColor.GetColor());
 	});
 	DisplayBox.AddFill(DisplayPaperColor);
-
 	DisplayBox.AddSpace(); DisplayBox.AddSpacer(); DisplayBox.AddSpace();
-
 	DisplayInkColor.SetAction([&]()
 	{
 		for (std::vector<BrushSection *>::iterator CurrentSection = BrushSections.begin();
@@ -88,7 +85,6 @@ SettingsDialog::SettingsDialog(GtkWidget *Window, SettingsData &Settings) :
 			(*CurrentSection)->BlackToggle.SetForegroundColor(DisplayInkColor.GetColor());
 	});
 	DisplayBox.AddFill(DisplayInkColor);
-
 	DisplayBox.AddSpace(); DisplayBox.AddSpacer(); DisplayBox.AddSpace();
 	DisplayBox.AddFill(DisplayScale);
 	DisplayFrame.Set(DisplayBox);
@@ -121,7 +117,7 @@ SettingsDialog::SettingsDialog(GtkWidget *Window, SettingsData &Settings) :
 		DeviceSections.push_back(new DeviceSection(
 			Settings.GetDeviceSettings(gdk_device_get_name(SystemDevice)), Settings.GetBrushCount()));
 
-		SettingsBox.Add(DeviceSections.back()->DeviceFrame);
+		SettingsBox.Add(*DeviceSections.back());
 	}
 
 	SettingsScroller.Set(SettingsBox);

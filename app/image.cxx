@@ -84,7 +84,7 @@ static unsigned int CalculateWidth(RunData::RowArray const &Rows)
 			assert(TestWidth == Width);
 		}
 	}
-	assert(Width >= 0);
+	assert(Width > 0);
 	return Width;
 }
 
@@ -501,7 +501,7 @@ void RunData::Remove(unsigned int const Left, unsigned int const Right, unsigned
 
 void RunData::Enlarge(unsigned int const Factor)
 {
-	assert(Factor >= 0);
+	assert(Factor >= 1);
 	unsigned int const OriginalHeight = Rows.size();
 	Rows.resize(OriginalHeight * Factor);
 	Width *= Factor;
@@ -573,7 +573,7 @@ Change *Mark::Apply(bool &FlippedHorizontally, bool &FlippedVertically)
 	return Out;
 }
 
-Change::CombineResult Mark::Combine(Change *Other) { return Change::CombineResult::Fail; }
+Change::CombineResult Mark::Combine(Change *) { return Change::CombineResult::Fail; }
 
 void Mark::AddLine(unsigned int const &LineNumber)
 {
@@ -623,7 +623,7 @@ Change::CombineResult VerticalFlip::Combine(Change *Other)
 
 Shift::Shift(RunData &Base, int Right, int Down) : Base(Base), Right(Right), Down(Down) { }
 
-Change *Shift::Apply(bool &FlippedHorizontally, bool &FlippedVertically)
+Change *Shift::Apply(bool &, bool &)
 {
 	if (Right != 0)
 	{
@@ -649,21 +649,89 @@ Change::CombineResult Shift::Combine(Change *Other)
 	return Change::CombineResult::Fail;
 }
 
-/*Add::Add(RunData &Base);
-Change *Add::Apply(bool &FlippedHorizontally, bool &FlippedVertically);
-Change::CombineResult Add::Combine(Change *Other);
+Add::Add(RunData &Base, unsigned int Left, unsigned int Right, unsigned int Up, unsigned int Down) : Base(Base), 
+	Left(Left), Right(Right), Up(Up), Down(Down)
+	{ }
 
-Remove::Remove(RunData &Base);
-Change *Remove::Apply(bool &FlippedHorizontally, bool &FlippedVertically);
-Change::CombineResult Remove::Combine(Change *Other);
+Change *Add::Apply(bool &, bool &)
+{
+	Base.Add(Left, Right, Up, Down);
+	return new Remove(Base, Left, Right, Up, Down);
+}
 
-Enlarge::Enlarge(RunData &Base);
-Change *Enlarge::Apply(bool &FlippedHorizontally, bool &FlippedVertically);
-Change::CombineResult Enlarge::Combine(Change *Other);
+Change::CombineResult Add::Combine(Change *Other)
+{
+	if (typeid(*this) == typeid(*Other))
+	{
+		Left += static_cast<Add *>(Other)->Left;
+		Right += static_cast<Add *>(Other)->Right;
+		Up += static_cast<Add *>(Other)->Up;
+		Down += static_cast<Add *>(Other)->Down;
+		return Change::CombineResult::Combine;
+	}
+	return Change::CombineResult::Fail;
+}
 
-Shrink::Shrink(RunData &Base);
-Change *Shrink::Apply(bool &FlippedHorizontally, bool &FlippedVertically);
-Change::CombineResult Shrink::Combine(Change *Other);*/
+Remove::Remove(RunData &Base, unsigned int Left, unsigned int Right, unsigned int Up, unsigned int Down) : Base(Base), 
+	Left(Left), Right(Right), Up(Up), Down(Down)
+	{ }
+
+Change *Remove::Apply(bool &, bool &)
+{
+	Base.Remove(Left, Right, Up, Down);
+	return new Remove(Base, Left, Right, Up, Down);
+}
+
+Change::CombineResult Remove::Combine(Change *Other)
+{
+	if (typeid(*this) == typeid(*Other))
+	{
+		Left += static_cast<Remove *>(Other)->Left;
+		Right += static_cast<Remove *>(Other)->Right;
+		Up += static_cast<Remove *>(Other)->Up;
+		Down += static_cast<Remove *>(Other)->Down;
+		return Change::CombineResult::Combine;
+	}
+	return Change::CombineResult::Fail;
+}
+
+Enlarge::Enlarge(RunData &Base, unsigned int const &Factor) : Base(Base), Factor(Factor)
+	{}
+
+Change *Enlarge::Apply(bool &, bool &)
+{
+	Base.Enlarge(Factor);
+	return new Shrink(Base, Factor);
+}
+
+Change::CombineResult Enlarge::Combine(Change *Other)
+{
+	if (typeid(*this) == typeid(*Other))
+	{
+		Factor *= static_cast<Enlarge *>(Other)->Factor;
+		return Change::CombineResult::Combine;
+	}
+	return Change::CombineResult::Fail;
+}
+
+Shrink::Shrink(RunData &Base, unsigned int const &Factor) : Base(Base), Factor(Factor)
+	{}
+
+Change *Shrink::Apply(bool &, bool &)
+{
+	Base.Shrink(Factor);
+	return new Shrink(Base, Factor);
+}
+
+Change::CombineResult Shrink::Combine(Change *Other)
+{
+	if (typeid(*this) == typeid(*Other))
+	{
+		Factor *= static_cast<Shrink *>(Other)->Factor;
+		return Change::CombineResult::Combine;
+	}
+	return Change::CombineResult::Fail;
+}
 
 //////////////////////////////////////////////////////////////////////////////////////////
 // Image manipulation/management
@@ -1060,6 +1128,9 @@ int Image::Zoom(int Amount)
 	DisplaySpace.Size = ImageSpace.Size / (float)PixelsBelow;
 	return PixelsBelow;
 }
+		
+FlatVector &Image::GetSize(void)
+	{ return ImageSpace.Size; }
 
 FlatVector &Image::GetDisplaySize(void)
 	{ return DisplaySpace.Size; }
@@ -1091,6 +1162,25 @@ void Image::Shift(bool Large, int Right, int Down)
 		Down * PixelsBelow * (Large ? 50 : 1));
 	bool Unused1, Unused2;
 	Changes.AddUndo(ShiftChange.Apply(Unused1, Unused2));
+	ModifiedSinceSave = true;
+}
+		
+void Image::Scale(unsigned int const &Factor)
+{
+	FinishMark();
+	assert(Factor >= 1);
+	::Enlarge ScaleChange(*Data, Factor);
+	bool Unused1, Unused2;
+	Changes.AddUndo(ScaleChange.Apply(Unused1, Unused2));
+	ModifiedSinceSave = true;
+}
+
+void Image::Add(unsigned int const &Left, unsigned int const &Right, unsigned int const &Up, unsigned int const &Down)
+{
+	FinishMark();
+	::Add AddChange(*Data, Left, Right, Up, Down);
+	bool Unused1, Unused2;
+	Changes.AddUndo(AddChange.Apply(Unused1, Unused2));
 	ModifiedSinceSave = true;
 }
 

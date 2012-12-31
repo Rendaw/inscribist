@@ -13,6 +13,7 @@
 
 #include "image.h"
 #include "settingsdialog.h"
+#include "expanddialog.h"
 #include "localization.h"
 
 const int Revision = REVISION;
@@ -413,7 +414,7 @@ class MainWindow : public Window
 
 		// Constructor, the meat of our salad
 		MainWindow(SettingsData &Settings, const String &Filename) :
-			Window(Local("Inscribist")),
+			Window(Local("Inscribist"), 0),
 			WindowKeys(*this),
 			Settings(Settings), SaveFilename(Filename),
 
@@ -421,10 +422,11 @@ class MainWindow : public Window
 
 			ToolbarBox(true, 0, 0),
 			MainToolbar(),
-			NewAction(Local("New"), diClear),
-			OpenAction(Local("Open"), diOpen),
-			SaveAction(Local("Save"), diSave),
-			ConfigureAction(Local("Settings"), diConfigure),
+			NewButton(Local("New"), diClear),
+			OpenButton(Local("Open"), diOpen),
+			SaveButton(Local("Save"), diSave),
+			ExpandButton(Local("Expand"), diAdd),
+			ConfigureButton(Local("Settings"), diConfigure),
 			ToolbarIndicatorToolbar(gtk_toolbar_new()),
 			ToolbarColorIndicator(gtk_drawing_area_new()),
 			ToolbarSizeIndicator("--"),
@@ -455,16 +457,19 @@ class MainWindow : public Window
 					{ return Type(KeyCode, Modifier); });
 
 			// Set up toolbar area
-			NewAction.SetAction([&]() { New(); });
-			MainToolbar.Add(NewAction);
-			OpenAction.SetAction([&]() { Open(); });
-			MainToolbar.Add(OpenAction);
-			SaveAction.SetAction([&]() { SaveAs(); });
-			MainToolbar.Add(SaveAction);
-			ConfigureAction.SetAction([&]() { Configure(); });
-			MainToolbar.Add(ConfigureAction);
+			NewButton.SetAction([&]() { New(); });
+			MainToolbar.Add(NewButton);
+			OpenButton.SetAction([&]() { Open(); });
+			MainToolbar.Add(OpenButton);
+			SaveButton.SetAction([&]() { SaveAs(); });
+			MainToolbar.Add(SaveButton);
+			ExpandButton.SetAction([&]() { Expand(); });
+			MainToolbar.Add(ExpandButton);
+			ConfigureButton.SetAction([&]() { Configure(); });
+			MainToolbar.Add(ConfigureButton);
 
 			ToolbarBox.AddFill(MainToolbar);
+			gtk_toolbar_set_style(GTK_TOOLBAR((GtkWidget *)MainToolbar), GTK_TOOLBAR_BOTH_HORIZ);
 
 			gtk_toolbar_set_show_arrow(GTK_TOOLBAR(ToolbarIndicatorToolbar), false);
 
@@ -644,6 +649,14 @@ class MainWindow : public Window
 			gtk_widget_destroy(Dialog);
 		}
 
+		void Expand(void)
+		{
+			OpenExpandDialog(*this, *Sketcher);
+
+			// Resize the window
+			SizeCanvasAppropriately();
+		}
+
 		void Configure(void)
 		{
 			OpenSettings(*this, Settings);
@@ -675,7 +688,7 @@ class MainWindow : public Window
 
 		Layout ToolbarBox;
 		Toolbar MainToolbar;
-		ToolButton NewAction, OpenAction, SaveAction, ConfigureAction;
+		ToolButton NewButton, OpenButton, SaveButton, ExpandButton, ConfigureButton;
 		GtkWidget *ToolbarIndicatorToolbar, *ToolbarColorIndicator;
 		Label ToolbarSizeIndicator;
 
