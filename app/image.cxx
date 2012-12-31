@@ -95,8 +95,8 @@ RunData::RunData(std::vector<std::vector<Run> > const &InitialRows) :
 void RunData::Line(int UnclippedLeft, int UnclippedRight, int const Y, bool Black)
 {
 	// Validate parameters
-	if (Y < 0) return;
-	if ((unsigned int)Y >= Rows.size()) return;
+	assert(Y >= 0);
+	assert(Y < Rows.size());
 
 	unsigned int const Right = RangeD(0, Width).Constrain(UnclippedRight);
 	unsigned int const Left = RangeD(0, Right).Constrain(UnclippedLeft);
@@ -625,16 +625,8 @@ Shift::Shift(RunData &Base, int Right, int Down) : Base(Base), Right(Right), Dow
 
 Change *Shift::Apply(bool &, bool &)
 {
-	if (Right != 0)
-	{
-		std::cout << "Shifting horizontally: " << Right << std::endl;
-		Base.ShiftHorizontally(Right);
-	}
-	if (Down != 0)
-	{
-		std::cout << "Shifting vertically: " << Down << std::endl;
-		Base.ShiftVertically(Down);
-	}
+	if (Right != 0) Base.ShiftHorizontally(Right);
+	if (Down != 0) Base.ShiftVertically(Down);
 	return new Shift(Base, -Right, -Down);
 }
 
@@ -1054,8 +1046,11 @@ Region Image::Mark(CursorState const &Start, CursorState const &End, bool const 
 		Data->Line(Left, Right, Row, Black);
 	};
 
+	// Fill in the lower cap region
 	for (int CurrentRow = CapBelowStart; CurrentRow < LineBottom; CurrentRow++)
 	{
+		if (CurrentRow < 0) continue;
+		if ((unsigned int)CurrentRow >= Data->Rows.size()) break;
 		int Left = CapHorizontalMax,
 			Right = CapHorizontalMin;
 
@@ -1065,10 +1060,14 @@ Region Image::Mark(CursorState const &Start, CursorState const &End, bool const 
 		Line(Left, Right, CurrentRow, Black);
 	}
 
+	// Fill in the area within the line
 	float Line1Position = Line1.StartHorizontalPosition,
 		Line2Position = Line2.StartHorizontalPosition;
 	for (int CurrentRow = LineBottom; CurrentRow < LineTop; CurrentRow++)
 	{
+		if (CurrentRow < 0) continue;
+		if ((unsigned int)CurrentRow >= Data->Rows.size()) break;
+
 		int Left = LineHorizontalMin,
 			Right = LineHorizontalMax;
 
@@ -1081,8 +1080,12 @@ Region Image::Mark(CursorState const &Start, CursorState const &End, bool const 
 		Line(Left, Right, CurrentRow, Black);
 	}
 
+	// Fill in the upper cap region
 	for (int CurrentRow = LineTop; CurrentRow < CapAboveEnd; CurrentRow++)
 	{
+		if (CurrentRow < 0) continue;
+		if ((unsigned int)CurrentRow >= Data->Rows.size()) break;
+
 		int Left = CapHorizontalMax,
 			Right = CapHorizontalMin;
 

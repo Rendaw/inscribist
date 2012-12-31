@@ -9,7 +9,7 @@
 #include "ren-general/range.h"
 #include "ren-general/filesystem.h"
 
-#include "gtkwrapper.h"
+#include "ren-gtk/gtkwrapper.h"
 
 RangeF const DampingRange(0.1, 16);
 RangeD const SizeRange(1000, 1000000);
