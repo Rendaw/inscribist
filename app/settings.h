@@ -14,10 +14,10 @@
 RangeF const DampingRange(0.1, 16);
 RangeD const SizeRange(1000, 1000000);
 unsigned int const SizeDefault(20000);
-RangeF const HeavyRadiusRange(4, SizeRange.Max);
-float const HeavyRadiusDefault(20);
-RangeF const LightRadiusRange(0, SizeRange.Max);
-float const LightRadiusDefault(5);
+RangeF const HeavyDiameterRange(0, 100);
+float const HeavyDiameterDefault(1);
+RangeF const LightDiameterRange(0, 100);
+float const LightDiameterDefault(0.1);
 RangeD const ScaleRange(1, SizeRange.Max / 500); // Allow users to zoom out to around 500x500 px
 unsigned int const DisplayScaleDefault = std::max(1u, (SizeDefault / 2000));
 unsigned int const ExportScaleDefault = std::max(1u, (SizeDefault / 2000));
@@ -29,10 +29,10 @@ float const BackgroundColorScale = 0.85f;
 
 struct BrushSettings
 {
-	BrushSettings(bool Black, float HeavyRadius, float LightRadius);
+	BrushSettings(bool Black, float HeavyDiameter, float LightDiameter);
 	bool Black;
-	float HeavyRadius;
-	float LightRadius;
+	float HeavyDiameter;
+	float LightDiameter;
 };
 
 struct DeviceSettings

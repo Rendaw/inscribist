@@ -9,12 +9,12 @@ SettingsDialog::BrushSection::BrushSection(unsigned int Index, BrushSettings &Se
 	BrushBox(true, 3, 6),
 	BlackToggle(Settings.Black, InkColor, PaperColor),
 	SliderBox(false, 0, 3),
-	HeavyRadiusSlider(Local("Heavy radius: "), HeavyRadiusRange, Settings.HeavyRadius),
-	LightRadiusSlider(Local("Light radius: "), LightRadiusRange, Settings.LightRadius)
+	HeavyDiameterSlider(Local("Heavy diameter (%): "), HeavyDiameterRange, Settings.HeavyDiameter),
+	LightDiameterSlider(Local("Light diameter (%): "), LightDiameterRange, Settings.LightDiameter)
 {
 	BrushBox.Add(BlackToggle);
-	SliderBox.Add(HeavyRadiusSlider);
-	SliderBox.Add(LightRadiusSlider);
+	SliderBox.Add(HeavyDiameterSlider);
+	SliderBox.Add(LightDiameterSlider);
 	BrushBox.AddFill(SliderBox);
 	BrushFrame.Set(BrushBox);
 }
@@ -139,8 +139,8 @@ SettingsDialog::SettingsDialog(GtkWidget *Window, SettingsData &Settings) :
 		{
 			BrushSettings &BrushSettings = Settings.GetBrushSettings((CurrentBrush + 1) % 10);
 			BrushSettings.Black = BrushSections[CurrentBrush]->BlackToggle.GetState();
-			BrushSettings.HeavyRadius = BrushSections[CurrentBrush]->HeavyRadiusSlider.GetValue();
-			BrushSettings.LightRadius = BrushSections[CurrentBrush]->LightRadiusSlider.GetValue();
+			BrushSettings.HeavyDiameter = BrushSections[CurrentBrush]->HeavyDiameterSlider.GetValue();
+			BrushSettings.LightDiameter = BrushSections[CurrentBrush]->LightDiameterSlider.GetValue();
 		}
 
 		for (std::vector<DeviceSection *>::iterator CurrentDeviceSection = DeviceSections.begin();

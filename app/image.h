@@ -35,7 +35,7 @@ class ChangeManager
 		bool CanRedo(void);
 		void Redo(bool &FlippedHorizontally, bool &FlippedVertically);
 	private:
-		DeleterStack<Change> Undos, Redos;
+		DeleterDequeue<Change> Undos, Redos;
 };
 
 struct RunData

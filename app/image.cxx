@@ -11,22 +11,27 @@
 
 #include "localization.h"
 
+unsigned int const MaxUndoLevels = 50;
+
 Change::~Change(void) {}
 		
 void ChangeManager::AddUndo(Change *Undo)
 {
 	while (!Redos.empty())
-		Redos.pop();
+		Redos.pop_back();
 	Change::CombineResult CombineResult;
-	if (!CanUndo() || ((CombineResult = Undos.top()->Combine(Undo)) == Change::CombineResult::Fail))
+	if (!CanUndo() || ((CombineResult = Undos.back()->Combine(Undo)) == Change::CombineResult::Fail))
 	{
-		Undos.push(Undo);
+		Undos.push_back(Undo);
+		std::cout << "Undo levels: " << Undos.size() << std::endl;
+		if (Undos.size() > MaxUndoLevels)
+			Undos.pop_front();
 		return;
 	}
 	switch (CombineResult)
 	{
 		case Change::CombineResult::Nullify:
-			Undos.pop();
+			Undos.pop_back();
 			delete Undo;
 			break;
 		case Change::CombineResult::Combine:
@@ -41,8 +46,8 @@ bool ChangeManager::CanUndo(void) { return !Undos.empty(); }
 void ChangeManager::Undo(bool &FlippedHorizontally, bool &FlippedVertically)
 {
 	assert(CanUndo());
-	Redos.push(Undos.top()->Apply(FlippedHorizontally, FlippedVertically));
-	Undos.pop();
+	Redos.push_back(Undos.back()->Apply(FlippedHorizontally, FlippedVertically));
+	Undos.pop_back();
 }
 
 bool ChangeManager::CanRedo(void) { return !Redos.empty(); }
@@ -50,8 +55,8 @@ bool ChangeManager::CanRedo(void) { return !Redos.empty(); }
 void ChangeManager::Redo(bool &FlippedHorizontally, bool &FlippedVertically)
 {
 	assert(CanRedo());
-	Undos.push(Redos.top()->Apply(FlippedHorizontally, FlippedVertically));
-	Redos.pop();
+	Undos.push_back(Redos.back()->Apply(FlippedHorizontally, FlippedVertically));
+	Redos.pop_back();
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////
@@ -1188,7 +1193,7 @@ void Image::Add(unsigned int const &Left, unsigned int const &Right, unsigned in
 }
 
 bool Image::HasChanges(void)
-	{ return Changes.CanUndo() && ModifiedSinceSave; }
+	{ return ModifiedSinceSave; }
 
 void Image::Undo(bool &FlippedHorizontally, bool &FlippedVertically)
 	{ if (Changes.CanUndo()) Changes.Undo(FlippedHorizontally, FlippedVertically); }

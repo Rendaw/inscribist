@@ -8,8 +8,8 @@
 extern StringTable const Local(DataLocation.Select("inscribist.strings"));
 extern String const NewFilename(Local("fresh" + Extension));
 
-BrushSettings::BrushSettings(bool Black, float HeavyRadius, float LightRadius) :
-	Black(Black), HeavyRadius(HeavyRadius), LightRadius(LightRadius)
+BrushSettings::BrushSettings(bool Black, float HeavyDiameter, float LightDiameter) :
+	Black(Black), HeavyDiameter(HeavyDiameter), LightDiameter(LightDiameter)
 	{}
 
 DeviceSettings::DeviceSettings(String const &Name, float Damping, unsigned int Brush) :
@@ -50,8 +50,8 @@ SettingsData::SettingsData(void) :
 	{
 		Brushes.push_back(new BrushSettings(
 			Get("Brush" + AsString(CurrentBrush) + "_Black", true),
-			HeavyRadiusRange.Constrain(Get("Brush" + AsString(CurrentBrush) + "_HeavyRadius", HeavyRadiusDefault)),
-			LightRadiusRange.Constrain(Get("Brush" + AsString(CurrentBrush) + "_LightRadius", LightRadiusDefault))));
+			HeavyDiameterRange.Constrain(Get("Brush" + AsString(CurrentBrush) + "_HeavyDiameter", HeavyDiameterDefault)),
+			LightDiameterRange.Constrain(Get("Brush" + AsString(CurrentBrush) + "_LightDiameter", LightDiameterDefault))));
 	}
 }
 
@@ -105,8 +105,8 @@ void SettingsData::Save(void)
 	for (unsigned int CurrentBrush = 0; CurrentBrush < Brushes.size(); CurrentBrush++)
 	{
 		Set("Brush" + AsString(CurrentBrush) + "_Black", Brushes[CurrentBrush]->Black);
-		Set("Brush" + AsString(CurrentBrush) + "_HeavyRadius", Brushes[CurrentBrush]->HeavyRadius);
-		Set("Brush" + AsString(CurrentBrush) + "_LightRadius", Brushes[CurrentBrush]->LightRadius);
+		Set("Brush" + AsString(CurrentBrush) + "_HeavyDiameter", Brushes[CurrentBrush]->HeavyDiameter);
+		Set("Brush" + AsString(CurrentBrush) + "_LightDiameter", Brushes[CurrentBrush]->LightDiameter);
 	}
 
 	LightSettings::Save();

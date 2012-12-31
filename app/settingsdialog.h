@@ -40,8 +40,8 @@ class SettingsDialog : public Dialog
 			Layout BrushBox;
 			ColorToggleButton BlackToggle;
 			Layout SliderBox;
-			Slider HeavyRadiusSlider;
-			Slider LightRadiusSlider;
+			Slider HeavyDiameterSlider;
+			Slider LightDiameterSlider;
 		};
 		std::vector<BrushSection *> BrushSections;
 

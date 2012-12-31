@@ -47,7 +47,7 @@ class MainWindow : public Window
 				State.LastDevice = CurrentDevice;
 				State.Device = &Settings.GetDeviceSettings(gdk_device_get_name(CurrentDevice));
 				State.Brush = &Settings.GetBrushSettings(State.Device->Brush);
-				ToolbarSizeIndicator.SetText(AsString((int)State.Brush->HeavyRadius));
+				ToolbarSizeIndicator.SetText(AsString((int)State.Brush->HeavyDiameter));
 				SetBackgroundColor(ToolbarColorIndicator, State.Brush->Black ? Settings.DisplayInk : Settings.DisplayPaper);
 			}
 
@@ -56,17 +56,19 @@ class MainWindow : public Window
 
 			State.Position = NewPosition - ImageOffset;
 
+			unsigned int ShortestAxisSize = std::min(Sketcher->GetSize()[0], Sketcher->GetSize()[1]);
 			double Found;
 			if (gdk_device_get_axis(CurrentDevice, AxisRawData, GDK_AXIS_PRESSURE, &Found) && !isinf(Found) && !isnan(Found) && (Found >= 0))
 			{
 				if (Found < 0.05f) State.Radius = 0.0f;
 				else
 				{
-					float const RadiusDifference = State.Brush->HeavyRadius - State.Brush->LightRadius;
-					State.Radius = State.Brush->LightRadius + RadiusDifference * powf(Found, State.Device->Damping);
+					float const DiameterDifference = State.Brush->HeavyDiameter - State.Brush->LightDiameter;
+					State.Radius = ShortestAxisSize *
+						0.005 * (State.Brush->LightDiameter + DiameterDifference * powf(Found, State.Device->Damping));
 				}
 			}
-			else State.Radius = State.Brush->HeavyRadius;
+			else State.Radius = ShortestAxisSize * 0.005 * State.Brush->HeavyDiameter;
 
 			delete [] AxisRawData;
 		}
@@ -138,7 +140,7 @@ class MainWindow : public Window
 					State.Device->Brush = KeyCode - GDK_KEY_0;
 					State.Brush = &Settings.GetBrushSettings(State.Device->Brush);
 
-					ToolbarSizeIndicator.SetText(AsString((int)State.Brush->HeavyRadius));
+					ToolbarSizeIndicator.SetText(AsString((int)State.Brush->HeavyDiameter));
 					SetBackgroundColor(ToolbarColorIndicator, State.Brush->Black ? Settings.DisplayInk : Settings.DisplayPaper);
 				}
 			}
@@ -673,7 +675,7 @@ class MainWindow : public Window
 			// Refresh setting stats in corner
 			if (State.Brush != NULL)
 			{
-				ToolbarSizeIndicator.SetText(AsString((int)State.Brush->HeavyRadius));
+				ToolbarSizeIndicator.SetText(AsString((int)State.Brush->HeavyDiameter));
 				SetBackgroundColor(ToolbarColorIndicator, State.Brush->Black ? Settings.DisplayInk : Settings.DisplayPaper);
 			}
 		}
