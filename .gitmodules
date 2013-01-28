@@ -1,15 +1,12 @@
 [submodule "app/ren-general"]
 	path = app/ren-general
-	url = ssh://rendaw@peppercorn.dyndns.org/~/code/libraries/ren-general.git
+	url = ../ren-general.git
 [submodule "app/ren-script"]
 	path = app/ren-script
-	url = ssh://rendaw@peppercorn.dyndns.org/~/code/libraries/ren-script.git
+	url = ../ren-script.git
 [submodule "app/ren-application"]
 	path = app/ren-application
-	url = ssh://rendaw@peppercorn.dyndns.org/~/code/libraries/ren-application.git
-[submodule "ren-gtk"]
-	path = ren-gtk
-	url = ./app/ren-gtk
+	url = ../ren-application.git
 [submodule "app/ren-gtk"]
 	path = app/ren-gtk
-	url = git@github.com:Rendaw/ren-gtk.git
+	url = ../ren-gtk.git
