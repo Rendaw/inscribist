@@ -768,7 +768,7 @@ Image::Image(SettingsData &Settings, String const &Filename) :
 	char LoadedIdentifier[32];
 	fread(LoadedIdentifier, sizeof(char), 32, Input);
 
-	unsigned int Version = 3;
+	unsigned int Version = 2;
 	if (strncmp(LoadedIdentifier, Identifier1, 32) == 0)
 	{
 		Version = 0;
@@ -845,7 +845,7 @@ Image::Image(SettingsData &Settings, String const &Filename) :
 		}
 
 		/// Read in the image data
-		uint32_t RowCount, Width;
+		unsigned int RowCount, Width;
 		BZ2_bzRead(&Error, CompressInput, &RowCount, sizeof(RowCount));
 		BZ2_bzRead(&Error, CompressInput, &Width, sizeof(Width));
 
@@ -857,13 +857,31 @@ Image::Image(SettingsData &Settings, String const &Filename) :
 
 		DisplaySpace.Size = ImageSpace.Size / (float)PixelsBelow;
 
-		for (uint32_t CurrentRow = 0; CurrentRow < RowCount; CurrentRow++)
+		unsigned int TotalLengths = 0;
+		for (unsigned int CurrentRow = 0; CurrentRow < RowCount; CurrentRow++)
 		{
-			uint32_t RunCount;
+			unsigned int RunCount;
 			BZ2_bzRead(&Error, CompressInput, &RunCount, sizeof(RunCount));
-			Data->Rows[CurrentRow].resize(RunCount);
-			BZ2_bzRead(&Error, CompressInput, &Data->Rows[CurrentRow][0], sizeof(RunData::Run) * RunCount);
+
+			std::vector<unsigned int> Runs;
+			Runs.resize(RunCount * 2);
+			BZ2_bzRead(&Error, CompressInput, &Runs[0], sizeof(unsigned int) * RunCount * 2);
+			
+			Data->Rows[CurrentRow].clear();
+			Data->Rows[CurrentRow].reserve(RunCount * 2);
+			bool First = true;
+			unsigned int LineWidth = 0;
+			for (auto const &Run : Runs) 
+			{
+				if (First) First = false;
+				else if (Run == 0) continue;
+				Data->Rows[CurrentRow].push_back(Run);
+				LineWidth += Run;
+				TotalLengths += Run;
+			}
+			assert(LineWidth == Width);
 		}
+		assert(TotalLengths == Width * RowCount);
 	}
 
 	/// Close the file and finish up.
