@@ -830,6 +830,7 @@ Image::Image(SettingsData &Settings, String const &Filename) :
 			std::vector<LittleEndian<RunData::Run> > Runs;
 			Runs.resize(RunCount);
 			BZ2_bzRead(&Error, CompressInput, &Runs[0], sizeof(LittleEndian<RunData::Run>) * RunCount);
+			Data->Rows[CurrentRow].clear();
 			Data->Rows[CurrentRow].reserve(RunCount);
 			for (auto const &Run : Runs) Data->Rows[CurrentRow].push_back(Run);
 		}
@@ -907,7 +908,7 @@ bool Image::Save(String const &Filename)
 	/// Add a simple header
 	char Identifier[32];
 	memset(Identifier, 0, 32);
-	strncpy(Identifier, "inscribble v01\n", 32);
+	strncpy(Identifier, "inscribble v02\n", 32);
 
 	fwrite(Identifier, sizeof(char), 32, Output);
 
