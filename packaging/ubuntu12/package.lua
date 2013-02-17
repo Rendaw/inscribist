@@ -1,13 +1,16 @@
 #!/usr/bin/lua
 dofile '../../info.include.lua'
 
-if not os.execute 'test -d ../../variant-release'
+local Variant = '../../variant-release'
+if arg[1] and arg[1] == 'debug' then Variant = '../../variant-debug' end
+
+if not os.execute('test -d ' .. Variant)
 then
-	error 'You must have a release build in variant directory variant-release/ for this to work.'
+	error('You must have a build in variant directory ' .. Variant .. ' for this to work.')
 end
 
-os.execute 'mkdir -p inscribist/DEBIAN'
-io.open('inscribist/DEBIAN/control', 'w+'):write([[
+os.execute('mkdir -p ' .. Info.PackageName .. '/DEBIAN')
+io.open(Info.PackageName .. '/DEBIAN/control', 'w+'):write([[
 Package: ]] .. Info.PackageName .. [[
 
 Version: ]] .. Info.Version .. [[
@@ -15,7 +18,7 @@ Version: ]] .. Info.Version .. [[
 Section: Development
 Priority: Optional
 Architecture: all
-Depends: libstdc++6 (>= 4.7.0-7ubuntu3)
+Depends: libstdc++6 (>= 4.7.0-7ubuntu3), lua5.2 (>= 5.2.0-2)
 Maintainer: ]] .. Info.Author .. ' <' .. Info.EMail .. [[>
 Description: ]] .. Info.ExtendedDescription .. [[
 
@@ -23,10 +26,10 @@ Homepage: ]] .. Info.Website .. [[
 
 ]]):close()
 
-os.execute 'mkdir -p inscribist/usr/bin'
-os.execute 'cp ../../variant-release/app/build/inscribist inscribist/usr/bin'
-os.execute 'mkdir -p inscribist/usr/share/doc/inscribist'
-os.execute 'cp ../../license.txt inscribist/usr/share/doc/inscribist'
-os.execute 'dpkg --build inscribist .'
-os.execute 'rm -r inscribist/usr'
+os.execute('mkdir -p ' .. Info.PackageName .. '/usr/bin')
+os.execute('cp ' .. Variant .. '/app/build/inscribist ' .. Info.PackageName .. '/usr/bin')
+os.execute('mkdir -p ' .. Info.PackageName .. '/usr/share/doc/inscribist')
+os.execute('cp ../../license.txt ' .. Info.PackageName .. '/usr/share/doc/' .. Info.PackageName)
+os.execute('dpkg --build ' .. Info.PackageName .. ' .')
+os.execute('rm -r ' .. Info.PackageName)
 

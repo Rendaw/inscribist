@@ -1,9 +1,12 @@
 #!/usr/bin/lua
 dofile '../../info.include.lua'
 
-if not os.execute 'test -d ../../variant-release'
+local Variant = '../../variant-release'
+if arg[1] and arg[1] == 'debug' then Variant = '../../variant-debug' end
+
+if not os.execute('test -d ' .. Variant)
 then
-	error 'You must have a release build in variant directory variant-release/ for this to work.'
+	error('You must have a build in variant directory ' .. Variant .. ' for this to work.')
 end
 
 io.open('PKGBUILD', 'w+'):write([[
@@ -52,10 +55,9 @@ package() {
 }
 ]]):close()
 
-os.execute 'mkdir -p src'
-os.execute 'cp ../../variant-release/build/inscribist src'
-os.execute 'cp -r ../../data src'
-os.execute 'cp ../../license.txt src'
-os.execute 'makepkg --repackage --force'
-os.execute 'rm -r src'
+os.execute('mkdir -p src')
+os.execute('cp ' .. Variant .. '/build/inscribist src')
+os.execute('cp ../../license.txt src')
+os.execute('makepkg --repackage --force')
+os.execute('rm PKGBUILD')
 
