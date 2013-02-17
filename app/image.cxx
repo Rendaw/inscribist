@@ -766,7 +766,11 @@ Image::Image(SettingsData &Settings, String const &Filename) :
 	strncpy(Identifier3, "inscribble v02\n", 32);
 
 	char LoadedIdentifier[32];
-	fread(LoadedIdentifier, sizeof(char), 32, Input);
+	size_t Result = fread(LoadedIdentifier, sizeof(char), 32, Input);
+	if (Result < 32)
+	{
+		StandardErrorStream << Local("There was some error while trying to read the header of the file.  Inscribist files begin with 32 bytes of text.") << "\n" << OutputStream::Flush();
+	}
 
 	unsigned int Version = 2;
 	if (strncmp(LoadedIdentifier, Identifier1, 32) == 0)
