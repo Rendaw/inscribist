@@ -25,16 +25,18 @@ Guard(function()
 	end
 end)
 
+Tup = Discover.Program{Name = {'tup', 'tup-lua'}}
+
 Guard(function()
 	Utility.MakeDirectory{Directory = VariantDirectory}
-	Utility.Call{Command = 'tup-lua init', WorkingDirectory = Root}
+	Utility.Call{Command = Tup.Location .. ' init', WorkingDirectory = Root}
 	local Error
 	TupConfig, Error = io.open(VariantDirectory .. 'tup.config', 'w')
 	if not TupConfig then error(Error) end
 	if Debug then TupConfig:write 'CONFIG_DEBUG=true\n' end
 	TupConfig:write('CONFIG_ROOT=' .. Root .. '\n')
 	TupConfig:write('CONFIG_VERSION=' .. Info.Version .. '\n')
-	TupConfig:write('CONFIG_CFLAGS=' .. os.getenv 'CFLAGS' .. '\n')
+	TupConfig:write('CONFIG_CFLAGS=' .. (os.getenv 'CFLAGS' or '') .. '\n')
 end)
 
 if Debug
@@ -70,7 +72,23 @@ local LinkDirectories = {}
 local IncludeDirectories = {}
 local LinkFlags = {}
 
-local Libraries = {{'lua52', 'lua'}, 'bz2', {'gtk-2.0', 'gtk-x11-2.0'}, {'gdk-2.0', 'gdk-x11-2.0'}, 'atk-1.0', 'gio-2.0', 'pangoft2-1.0', 'pangocairo-1.0', 'gdk_pixbuf-2.0', 'cairo', 'pango-1.0', 'freetype', 'fontconfig', 'gobject-2.0', 'glib-2.0'}
+local Libraries = {
+	{'lua52', 'lua'}, 
+	{'bz2', 'bzip2'}, 
+	{'gtk-2.0', 'gtk-x11-2.0', 'gtk-win32-2.0-0'}, 
+	{'gdk-2.0', 'gdk-x11-2.0', 'gdk-win32-2.0-0'}, 
+	{'atk-1.0', 'atk-1.0-0'}, 
+	{'gio-2.0', 'gio-2.0-0'}, 
+	{'pangoft2-1.0', 'pangoft2-1.0-0'}, 
+	{'pangocairo-1.0', 'pangocairo-1.0-0'}, 
+	{'gdk_pixbuf-2.0', 'gdk_pixbuf-2.0-0'}, 
+	{'cairo', 'cairo-2'}, 
+	{'pango-1.0', 'pangowin32-1.0-0'}, 
+	{'freetype', 'freetype6'}, 
+	{'fontconfig', 'fontconfig-1'}, 
+	{'gobject-2.0', 'gobject-2.0-0'}, 
+	{'glib-2.0', 'glib-2.0-0'}
+}
 for Index, Library in ipairs(Libraries)
 do
 	local LibraryInfo = Discover.CLibrary{Name = Library}
