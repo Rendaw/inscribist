@@ -94,7 +94,7 @@ do
 	local LibraryInfo = Discover.CLibrary{Name = Library}
 	Guard(function()
 		for DirectoryIndex, Directory in ipairs(LibraryInfo.IncludeDirectories) do
-			IncludeDirectories['-I' .. Directory] = true
+			IncludeDirectories['-I"' .. Directory .. '"'] = true
 		end
 		for FilenameIndex, Filename in ipairs(LibraryInfo.Filenames) do
 			local ShortName = Filename:gsub('^lib', '')
@@ -103,7 +103,7 @@ do
 			LinkFlags['-l' .. ShortName] = true
 		end
 		for DirectoryIndex, Directory in ipairs(LibraryInfo.LibraryDirectories) do
-			LinkDirectories['-L' .. Directory] = true
+			LinkDirectories['-L"' .. Directory .. '"'] = true
 		end
 	end)
 end

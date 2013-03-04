@@ -58,7 +58,7 @@ class MainWindow : public Window
 
 			unsigned int ShortestAxisSize = std::min(Sketcher->GetSize()[0], Sketcher->GetSize()[1]);
 			double Found;
-			if (gdk_device_get_axis(CurrentDevice, AxisRawData, GDK_AXIS_PRESSURE, &Found) && !isinf(Found) && !isnan(Found) && (Found >= 0))
+			if (gdk_device_get_axis(CurrentDevice, AxisRawData, GDK_AXIS_PRESSURE, &Found) && !std::isinf(Found) && !std::isnan(Found) && (Found >= 0))
 			{
 				if (Found < 0.05f) State.Radius = 0.0f;
 				else
