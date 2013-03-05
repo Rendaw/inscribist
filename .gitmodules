@@ -4,9 +4,9 @@
 [submodule "app/ren-script"]
 	path = app/ren-script
 	url = ../ren-script.git
-[submodule "app/ren-application"]
-	path = app/ren-application
-	url = ../ren-application.git
+[submodule "app/ren-translation"]
+	path = app/ren-translation
+	url = git@github.com:Rendaw/ren-translation.git
 [submodule "app/ren-gtk"]
 	path = app/ren-gtk
 	url = ../ren-gtk.git
