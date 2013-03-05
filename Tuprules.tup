@@ -7,7 +7,7 @@ NormalizeSlashes = function(Filename)
 end
 
 CompileFlags = '-std=gnu++11 -Wall -pedantic -Wextra ' .. tup.getconfig('CFLAGS') .. ' -I' .. NormalizeSlashes(tup.getcwd()) .. ' -DREVISION=' .. tup.getconfig('VERSION') .. ' -DDATALOCATION=\\"' .. tup.getconfig('DATADIRECTORY') .. '\\" ' .. tup.getconfig('INCLUDEDIRECTORIES')
-LinkFlags = '-Wall -pedantic ' .. tup.getconfig('LINKDIRECTORIES')
+LinkFlags = '-Wall -pedantic ' .. tup.getconfig('LIBDIRECTORIES')
 LinkLibraries = tup.getconfig('LINKFLAGS')
 if tup.getconfig('DEBUG') == 'true'
 then

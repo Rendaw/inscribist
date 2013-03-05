@@ -61,7 +61,7 @@ ext.String("Add", "Add")
 ext.String("New Size", "New Size")
 
 -- Error messages
-ext.String("There was some error while trying to read the header of the file.  Inscribist files begin with 32 bytes of text.")
+ext.String("There was some error while trying to read the header of the file.  Inscribist files begin with 32 bytes of text.", "There was some error while trying to read the header of the file.  Inscribist files begin with 32 bytes of text.")
 ext.String("The version string in the file is wrong.  Inscribist probably can't open this file.", "The version string in the file is wrong.  Inscribist probably can't open this file.")
 ext.String("bz2 noticed the file had an error after being opened: ", "bz2 noticed the file had an error after being opened: ")
 ext.String("bz2 ran out of memory when opening file for reading: ", "bz2 ran out of memory when opening file for reading: ")

@@ -83,7 +83,7 @@ local Libraries = {
 	{'pangocairo-1.0', 'pangocairo-1.0-0'}, 
 	{'gdk_pixbuf-2.0', 'gdk_pixbuf-2.0-0'}, 
 	{'cairo', 'cairo-2'}, 
-	{'pango-1.0', 'pangowin32-1.0-0'}, 
+	{'pango-1.0', 'pango-1.0-0'}, 
 	{'freetype', 'freetype6'}, 
 	{'fontconfig', 'fontconfig-1'}, 
 	{'gobject-2.0', 'gobject-2.0-0'}, 
@@ -100,6 +100,7 @@ do
 			local ShortName = Filename:gsub('^lib', '')
 			ShortName = ShortName:gsub('%.so$', '')
 			ShortName = ShortName:gsub('%.so%..*', '')
+			ShortName = ShortName:gsub('%.dll$', '')
 			LinkFlags['-l' .. ShortName] = true
 		end
 		for DirectoryIndex, Directory in ipairs(LibraryInfo.LibraryDirectories) do
