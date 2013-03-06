@@ -2,7 +2,7 @@
 
 #include "settingsdialog.h"
 
-#include "localization.h"
+#include "ren-translation/translation.h"
 
 SettingsDialog::BrushSection::BrushSection(unsigned int Index, BrushSettings &Settings, const Color &InkColor, const Color &PaperColor) :
 	BrushFrame(Local("Brush " + AsString(Index))),

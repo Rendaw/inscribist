@@ -1,7 +1,7 @@
 tup.dorulesfile()
 tup.dofile '../ren-general/build/files.tup'
 tup.dofile '../ren-script/build/files.tup'
-tup.dofile '../ren-application/build/files.tup'
+tup.dofile '../ren-translation/build/files.tup'
 tup.dofile '../ren-gtk/build/files.tup'
 
 Sources = 
@@ -32,7 +32,7 @@ do
 	table.insert(Objects, Object) 
 	table.insert(TestObjects, Object) 
 end
-for Index, Object in ipairs(RenApplicationObjects) 
+for Index, Object in ipairs(RenTranslationObjects) 
 do 
 	table.insert(Objects, Object) 
 	table.insert(TestObjects, Object) 

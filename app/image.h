@@ -6,6 +6,8 @@
 #include <cairo/cairo.h>
 #include <deque>
 
+#include "ren-general/lifetime.h"
+
 #include "settings.h"
 #include "cursorstate.h"
 

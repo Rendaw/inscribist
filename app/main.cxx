@@ -10,15 +10,18 @@
 #include "ren-general/vector.h"
 #include "ren-general/range.h"
 #include "ren-gtk/gtkwrapper.h"
+#include "ren-translation/translation.h"
 
 #include "image.h"
 #include "settingsdialog.h"
 #include "expanddialog.h"
-#include "localization.h"
 
 const int Revision = REVISION;
 
 const float ColorMax = 65535;
+
+String const NewFilename("fresh" + Extension);
+
 void SetBackgroundColor(GtkWidget *Widget, const Color &NewColor)
 {
 	GdkColor SetColor;
@@ -717,6 +720,7 @@ class MainWindow : public Window
 //
 int main(int ArgumentCount, char **Arguments)
 {
+	InitializeTranslation("inscribist");
 	gtk_init(&ArgumentCount, &Arguments);
 
 	/// Load the settings

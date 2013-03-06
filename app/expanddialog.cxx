@@ -2,7 +2,7 @@
 
 #include "expanddialog.h"
 
-#include "localization.h"
+#include "ren-translation/translation.h"
 
 ExpandDialog::ExpandDialog(GtkWidget *Window, Image &Sketcher) : Dialog(Window, Local("Expand Image")),
 	Sketcher(Sketcher),

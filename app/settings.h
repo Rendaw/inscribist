@@ -5,7 +5,6 @@
 
 #include <map>
 
-#include "ren-application/translation.h"
 #include "ren-general/string.h"
 #include "ren-general/inputoutput.h"
 #include "ren-general/color.h"

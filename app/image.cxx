@@ -9,9 +9,8 @@
 #include <bzlib.h>
 #include <cstring>
 
-#include "localization.h"
-
 #include "ren-general/endian.h"
+#include "ren-translation/translation.h"
 
 unsigned int const MaxUndoLevels = 50;
 
