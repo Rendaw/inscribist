@@ -68,6 +68,7 @@ Guard(function()
 	TupConfig:write('CONFIG_COMPILER=' .. Compiler.Path .. '\n')
 end)
 
+-- Locate libraries
 local LinkDirectories = {}
 local IncludeDirectories = {}
 local LinkFlags = {}
@@ -121,30 +122,44 @@ do
 		end
 	end)
 end
+Guard(function()
+	TupConfig:write 'CONFIG_LIBDIRECTORIES='
+	for Flag, Discard in pairs(LinkDirectories) do TupConfig:write(Flag .. ' ') end
+	TupConfig:write '\n'
 
-if Platform.Family == 'windows'
-then  
-	local PackageSources = {}
-	function AskForSourcePackage(Name)
-		Result = Discover.Flag{Name = Name, Description = 'The location of the source package for the ' .. Name .. ' package linked to the executable.  This is required to include in the installer to comply with the license.', HasValue = true}
-		if Result and not Result.Present
+	TupConfig:write 'CONFIG_INCLUDEDIRECTORIES='
+	for Flag, Discard in pairs(IncludeDirectories) do TupConfig:write(Flag .. ' ') end
+	TupConfig:write '\n'
+
+	TupConfig:write 'CONFIG_LINKFLAGS='
+	for Flag, Discard in pairs(LinkFlags) do TupConfig:write(Flag .. ' ') end
+	TupConfig:write '\n'
+end)
+
+-- Locate source packages for packaging on windows
+local PackageSources = {}
+function AskForSourcePackage(Name)
+	Result = Discover.Flag{Name = Name, Description = 'The location of the source package for the ' .. Name .. ' package linked to the executable.  This is used and required on Windows only to include in the installer to comply with the license for ' .. Name .. '.', HasValue = true}
+	if Result
+	then
+		if not Result.Present
 		then
 			error('On Windows, the location of ' .. Name .. ' must be specified.  Run the configure script again with Help specified for more information.')
 		end
-		if Result
-		then
-			table.insert(PackageSources, Result.Value)
-		end
+		table.insert(PackageSources, Result.Value)
 	end
-	AskForSourcePackage('gettextSources')
-	AskForSourcePackage('bz2Sources')
-	AskForSourcePackage('GLibSources')
-	AskForSourcePackage('GTKSources')
-	AskForSourcePackage('GDKSources')
-	AskForSourcePackage('PangoSources')
-	AskForSourcePackage('AtkSources')
+end
+AskForSourcePackage('gettextSources')
+AskForSourcePackage('bz2Sources')
+AskForSourcePackage('GLibSources')
+AskForSourcePackage('GTKSources')
+AskForSourcePackage('GDKSources')
+AskForSourcePackage('PangoSources')
+AskForSourcePackage('AtkSources')
 
-	Guard(function()
+Guard(function()
+	if Platform.Family == 'windows'
+	then
 		local PackageInclude, Error = io.open('packaging/windows/package.include.lua', 'w')
 		if not PackageInclude then error(Error) end
 
@@ -162,20 +177,7 @@ then
 			PackageInclude:write('\t\'' .. File .. '\',\n')
 		end
 		PackageInclude:write '}\n\n'
-	end)
-end
-
-
-Guard(function()
-	TupConfig:write 'CONFIG_LIBDIRECTORIES='
-	for Flag, Discard in pairs(LinkDirectories) do TupConfig:write(Flag .. ' ') end
-	TupConfig:write '\n'
-
-	TupConfig:write 'CONFIG_INCLUDEDIRECTORIES='
-	for Flag, Discard in pairs(IncludeDirectories) do TupConfig:write(Flag .. ' ') end
-	TupConfig:write '\n'
-
-	TupConfig:write 'CONFIG_LINKFLAGS='
-	for Flag, Discard in pairs(LinkFlags) do TupConfig:write(Flag .. ' ') end
-	TupConfig:write '\n'
+	end
 end)
+
+

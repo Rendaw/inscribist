@@ -70,19 +70,22 @@ io.open('./install_' .. Info.PackageName .. '.wxs', 'w+'):write([[
 		<Property Id="ARPPRODUCTICON" Value="Icon32" />
 		<Property Id="ARPHELPLINK" Value="]] .. Info.Website .. [[" />
 		<Property Id="ARPURLINFOABOUT" Value="]] .. Info.CompanyWebsite .. [[" />
-		<!--<UIRef Id="WixUI_Advanced" />
-		<WixVariable Id="WixUILicenseRtf" Value="licenses.rtf" />-->
+
+		<!-- AdvancedUI stuff - also requires APPLICATIONFOLDER as Id below -->
+		<UIRef Id="WixUI_Advanced" />
+		<WixVariable Id="WixUILicenseRtf" Value="licenses.rtf" />
+		<Property Id="ApplicationFolderName" Value="]] .. Info.PackageName .. [[" />
+		<Property Id="WixAppFolder" Value="WixPerMachineFolder" />
 
 		<Directory Id="TARGETDIR" Name="SourceDir">
 			 <Directory Id="ProgramFilesFolder">
-				<Directory Id="INSTALLDIR" Name="]] .. Info.PackageName .. [[">
+				<Directory Id="APPLICATIONFOLDER" Name="]] .. Info.PackageName .. [[">
 					<Component Id="CoreComponent" Guid="*">
 						<File Id="CoreComponentFile" Source="..\..\app\build\inscribist.exe" KeyPath="yes" Checksum="yes" />
 					</Component>
 					]] .. PackageBinaryComponents() .. [[
-					<Component Id="CoreLicense" Guid="*">
-						<File Id="CoreLicenseFile" Source="..\..\license.txt" KeyPath="yes" />
-					</Component>
+					]] .. FileComponent(5, 'CoreLicense', '..\\..\\license.txt') .. [[
+					]] .. FileComponent(5, 'LuaLicense', 'lualicense.txt') .. [[
 					]] .. WebsiteShortcutComponent(5, 'CoreWebsiteShortcut', Info.PackageName .. ' Website', Info.Website) .. [[
 					]] .. WebsiteShortcutComponent(5, 'CoreForumShortcut', Info.PackageName .. ' Forum', Info.Forum) .. [[
 					]] .. PackageSourceComponents() .. [[
@@ -90,25 +93,31 @@ io.open('./install_' .. Info.PackageName .. '.wxs', 'w+'):write([[
 			 </Directory>
 
 			 <Directory Id="ProgramMenuFolder">
-				<Component Id="ApplicationShortcuts" Guid="*">
-					<Shortcut Id="ApplicationShortcutFile" Name="]] .. Info.PackageName .. [[" Target="[INSTALLDIR]inscribist.exe" WorkingDirectory="INSTALLDIR" Icon="Icon32" />
-					<RegistryValue Root="HKCU" Key="Software\]] .. Info.Company .. [[\]] .. Info.PackageName .. [[" Name="ApplicationShortcutFile" Type="integer" Value="1" KeyPath="yes"/>
-				</Component>
-				]] .. WebsiteShortcutComponent(4, 'StartMenuWebsiteShortcut', Info.PackageName .. ' Website', Info.Website) .. [[
-				]] .. WebsiteShortcutComponent(4, 'StartMenuForumShortcut', Info.PackageName .. ' Forum', Info.Forum) .. [[
+			 	<Directory Id="ProgramMenuSubfolder" Name="]] .. Info.PackageName .. [[">
+					<Component Id="ApplicationShortcuts" Guid="*">
+						<Shortcut Id="ApplicationShortcutFile" Name="]] .. Info.PackageName .. [[" Target="[APPLICATIONFOLDER]inscribist.exe" WorkingDirectory="APPLICATIONFOLDER" Icon="Icon32" />
+						<RegistryValue Root="HKCU" Key="Software\]] .. Info.Company .. [[\]] .. Info.PackageName .. [[" Name="ApplicationShortcutFile" Type="integer" Value="1" KeyPath="yes"/>
+						<RemoveFolder Id="ProgramMenuSubfolder" On="uninstall"/>
+					</Component>
+					]] .. WebsiteShortcutComponent(5, 'StartMenuWebsiteShortcut', Info.PackageName .. ' Website', Info.Website) .. [[
+					]] .. WebsiteShortcutComponent(5, 'StartMenuForumShortcut', Info.PackageName .. ' Forum', Info.Forum) .. [[
+				</Directory>
 			 </Directory>
 		</Directory>
 
-		<Feature Id="Core" Level="1">
+		<Feature Id="Core" Level="1" Absent="disallow" Title="Mostly Everything">
 			<ComponentRef Id="CoreComponent" />
 			]] .. PackageBinaryFeatureItems() .. [[
 			<ComponentRef Id="CoreLicense" />
+			<ComponentRef Id="LuaLicense" />
 			<ComponentRef Id="CoreWebsiteShortcut" />
 			<ComponentRef Id="CoreForumShortcut" />
-			]] .. PackageSourceFeatureItems() .. [[
 			<ComponentRef Id="ApplicationShortcuts" />
 			<ComponentRef Id="StartMenuWebsiteShortcut" />
 			<ComponentRef Id="StartMenuForumShortcut" />
+		</Feature>
+		<Feature Id="LicenseItems" Level="1000" Title="Library source code" Description="Useful if the internet is destroyed and you really want to build some related software.">
+			]] .. PackageSourceFeatureItems() .. [[
 		</Feature>
 	</Product>
 </Wix>
