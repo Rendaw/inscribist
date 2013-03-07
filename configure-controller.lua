@@ -71,6 +71,7 @@ end)
 local LinkDirectories = {}
 local IncludeDirectories = {}
 local LinkFlags = {}
+local PackageLibBinaries = {}
 
 local Libraries = {
 	{'lua52', 'lua'}, 
@@ -89,6 +90,10 @@ local Libraries = {
 	{'gobject-2.0', 'gobject-2.0-0'}, 
 	{'glib-2.0', 'glib-2.0-0'}
 }
+if Platform.Family == 'windows'
+then
+	table.insert(Libraries, {'intl'})
+end
 for Index, Library in ipairs(Libraries)
 do
 	local LibraryInfo = Discover.CLibrary{Name = Library}
@@ -103,11 +108,63 @@ do
 			ShortName = ShortName:gsub('%.dll$', '')
 			LinkFlags['-l' .. ShortName] = true
 		end
+		if Platform.Family == 'windows' 
+		then
+			if #LibraryInfo.LibraryDirectories > 1 or #LibraryInfo.Filenames > 1
+			then
+				error('Was pkg-config used for library ' .. Library .. '?  Too much information, can\'t determine library files for packaging.')
+			end
+			table.insert(PackageLibBinaries, LibraryInfo.LibraryDirectories[1] .. '/' .. LibraryInfo.Filenames[1])
+		end
 		for DirectoryIndex, Directory in ipairs(LibraryInfo.LibraryDirectories) do
 			LinkDirectories['-L"' .. Directory .. '"'] = true
 		end
 	end)
 end
+
+if Platform.Family == 'windows'
+then  
+	local PackageSources = {}
+	function AskForSourcePackage(Name)
+		Result = Discover.Flag{Name = Name, Description = 'The location of the source package for the ' .. Name .. ' package linked to the executable.  This is required to include in the installer to comply with the license.', HasValue = true}
+		if Result and not Result.Present
+		then
+			error('On Windows, the location of ' .. Name .. ' must be specified.  Run the configure script again with Help specified for more information.')
+		end
+		if Result
+		then
+			table.insert(PackageSources, Result.Value)
+		end
+	end
+	AskForSourcePackage('gettextSources')
+	AskForSourcePackage('bz2Sources')
+	AskForSourcePackage('GLibSources')
+	AskForSourcePackage('GTKSources')
+	AskForSourcePackage('GDKSources')
+	AskForSourcePackage('PangoSources')
+	AskForSourcePackage('AtkSources')
+
+	Guard(function()
+		local PackageInclude, Error = io.open('packaging/windows/package.include.lua', 'w')
+		if not PackageInclude then error(Error) end
+
+		PackageInclude:write 'PackageSources = {\n'
+		for Index, File in ipairs(PackageSources)
+		do
+			if not io.open(File, 'r') then error('Package source path ' .. File .. ' is invalid.') end
+			PackageInclude:write('\t\'' .. File .. '\',\n')
+		end
+		PackageInclude:write '}\n\n'
+
+		PackageInclude:write 'LibBinaries = {\n'
+		for Index, File in ipairs(PackageLibBinaries)
+		do
+			PackageInclude:write('\t\'' .. File .. '\',\n')
+		end
+		PackageInclude:write '}\n\n'
+	end)
+end
+
 
 Guard(function()
 	TupConfig:write 'CONFIG_LIBDIRECTORIES='
