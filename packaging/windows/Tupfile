@@ -13,12 +13,11 @@ then
 		outputs = {'install_' .. Info.PackageName .. '.wixobj'},
 		command = 'candle -ext WiXUtilExtension ./install_' .. Info.PackageName .. '.wxs'
 	}
-	Licenses = {'../../license.txt', 'lualicense.txt', 'gtklicense.txt'}
-	LicensesWithLabels = {Info.PackageName .. ' license', Licenses[1], 'Lua license', Licenses[2], 'GTK license', Licenses[3]}
+	Licenses = {'../../license.txt', 'lualicensepre.include.rtf', 'lualicense.txt', 'lgpllicensepre.include.rtf', 'lgpllicense.txt'}
 	tup.definerule{
 		inputs = Licenses,
 		outputs = {'licenses.rtf'},
-		command = 'lua ./txttortf.lua licenses.rtf ' .. table.concat(LicensesWithLabels, ' ')
+		command = 'lua ./txttortf.lua licenses.rtf ' .. table.concat(Licenses, ' ')
 	}
 	tup.definerule{
 		inputs = {'install_' .. Info.PackageName .. '.wixobj'},

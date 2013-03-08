@@ -1,16 +1,15 @@
 if not arg[1] or not arg[2]
 then
-	error 'Usage: lua txttortf.lua OUT (LABEL IN)...'
+	error 'Usage: lua txttortf.lua OUT IN...'
 end
 
 	
 local Outfile = io.open(arg[1], 'w+')
 Outfile:write([[{\rtf1\ansi{\fonttbl\f0\fmodern Pica;}\f0\pard]] .. '\n')
 
-for FileIndex = 2, #arg, 2
+for FileIndex = 2, #arg
 do
-	Outfile:write(arg[FileIndex] .. '\\par \n\\par \n')
-	local Infile = io.open(arg[FileIndex + 1], 'r')
+	local Infile = io.open(arg[FileIndex], 'r')
 	while true
 	do
 		Line = Infile:read()

@@ -32,24 +32,6 @@ function PackageBinaryFeatureItems()
 	return table.concat(Out, '\t\t\t')
 end
 
-function PackageSourceComponents()
-	Out = {}
-	for Index, File in ipairs(PackageSources)
-	do
-		table.insert(Out, FileComponent(5, 'CoreComponentSource' .. Index, File))
-	end
-	return table.concat(Out, '\t\t\t\t\t')
-end
-
-function PackageSourceFeatureItems()
-	Out = {}
-	for Index, File in ipairs(PackageSources)
-	do
-		table.insert(Out, '<ComponentRef Id="CoreComponentSource' .. Index .. '" />\n')
-	end
-	return table.concat(Out, '\t\t\t')
-end
-
 function WebsiteShortcutComponent(Indentation, ID, Label, URL)
 	Pre = ('\t'):rep(Indentation)
 	return 
@@ -88,7 +70,6 @@ io.open('./install_' .. Info.PackageName .. '.wxs', 'w+'):write([[
 					]] .. FileComponent(5, 'LuaLicense', 'lualicense.txt') .. [[
 					]] .. WebsiteShortcutComponent(5, 'CoreWebsiteShortcut', Info.PackageName .. ' Website', Info.Website) .. [[
 					]] .. WebsiteShortcutComponent(5, 'CoreForumShortcut', Info.PackageName .. ' Forum', Info.Forum) .. [[
-					]] .. PackageSourceComponents() .. [[
 				</Directory>
 			 </Directory>
 
@@ -105,7 +86,7 @@ io.open('./install_' .. Info.PackageName .. '.wxs', 'w+'):write([[
 			 </Directory>
 		</Directory>
 
-		<Feature Id="Core" Level="1" Absent="disallow" Title="Mostly Everything">
+		<Feature Id="Core" Level="1" Absent="disallow" Title="Everything">
 			<ComponentRef Id="CoreComponent" />
 			]] .. PackageBinaryFeatureItems() .. [[
 			<ComponentRef Id="CoreLicense" />
@@ -115,9 +96,6 @@ io.open('./install_' .. Info.PackageName .. '.wxs', 'w+'):write([[
 			<ComponentRef Id="ApplicationShortcuts" />
 			<ComponentRef Id="StartMenuWebsiteShortcut" />
 			<ComponentRef Id="StartMenuForumShortcut" />
-		</Feature>
-		<Feature Id="LicenseItems" Level="1000" Title="Library source code" Description="Useful if the internet is destroyed and you really want to build some related software.">
-			]] .. PackageSourceFeatureItems() .. [[
 		</Feature>
 	</Product>
 </Wix>
