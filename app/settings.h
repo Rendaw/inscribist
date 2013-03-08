@@ -1,4 +1,4 @@
-// Copyright 2011 Rendaw, under the FreeBSD license (See included LICENSE.txt)
+// Copyright 2013 Rendaw, under the FreeBSD license (See included license.txt)
 
 #ifndef settings_h
 #define settings_h
@@ -52,7 +52,7 @@ RangeD const ScaleRange(1, SizeRange.Max / 500); // Allow users to zoom out to a
 unsigned int const DisplayScaleDefault = std::max(1u, (SizeDefault / 2000));
 unsigned int const ExportScaleDefault = std::max(1u, (SizeDefault / 2000));
 
-DirectoryPath const DataLocation(DATALOCATION);
+DirectoryPath const DataLocation(DirectoryPath::Qualify(DATALOCATION));
 String const Extension(".inscribble");
 
 float const BackgroundColorScale = 0.85f;

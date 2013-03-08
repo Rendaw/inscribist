@@ -1,4 +1,4 @@
-// Copyright 2011 Rendaw, under the FreeBSD license (See included LICENSE.txt)
+// Copyright 2013 Rendaw, under the FreeBSD license (See included license.txt)
 
 #include <gdk/gdk.h>
 #include <gdk/gdkkeysyms.h>
@@ -446,7 +446,7 @@ class MainWindow : public Window
 		{
 			// Construct the window
 			SetDefaultSize({400, 440});
-			SetIcon(DataLocation.Select("/icon32.png"));
+			SetIcon(DataLocation.Select("icon32.png"));
 			SetAttemptCloseHandler([&](void) -> bool
 			{
 				if (!ConfirmClose()) return false;

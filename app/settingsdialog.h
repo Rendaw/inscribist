@@ -1,4 +1,4 @@
-// Copyright 2011 Rendaw, under the FreeBSD license (See included LICENSE.txt)
+// Copyright 2013 Rendaw, under the FreeBSD license (See included license.txt)
 
 #ifndef settingsdialog_h
 #define settingsdialog_h

@@ -52,10 +52,17 @@ then
 		TupConfig:write('CONFIG_DATADIRECTORY=' .. Root .. 'data/\n')
 	end)
 else
-	local InstallData = Discover.InstallDataDirectory{Project = 'inscribist'}
-	Guard(function()
-		TupConfig:write('CONFIG_DATADIRECTORY=' .. InstallData.Location .. '\n')
-	end)
+	if Platform.Family == 'windows'
+	then
+		Guard(function()
+			TupConfig:write('CONFIG_DATADIRECTORY=.\n')
+		end)
+	else
+		local InstallData = Discover.InstallDataDirectory{Project = 'inscribist'}
+		Guard(function()
+			TupConfig:write('CONFIG_DATADIRECTORY=' .. InstallData.Location .. '\n')
+		end)
+	end
 end
 
 Guard(function()

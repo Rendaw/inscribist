@@ -1,3 +1,5 @@
+// Copyright 2013 Rendaw, under the FreeBSD license (See included license.txt)
+
 #include "image.h"
 
 void CompareInternal(int Line, RunData const &GotData, RunData const &ExpectedData)

@@ -66,6 +66,7 @@ io.open('./install_' .. Info.PackageName .. '.wxs', 'w+'):write([[
 						<File Id="CoreComponentFile" Source="..\..\app\build\inscribist.exe" KeyPath="yes" Checksum="yes" />
 					</Component>
 					]] .. PackageBinaryComponents() .. [[
+					]] .. FileComponent(5, 'CoreIcon', '..\\..\\data\\icon32.png') .. [[
 					]] .. FileComponent(5, 'CoreLicense', '..\\..\\license.txt') .. [[
 					]] .. FileComponent(5, 'LuaLicense', 'lualicense.txt') .. [[
 					]] .. WebsiteShortcutComponent(5, 'CoreWebsiteShortcut', Info.PackageName .. ' Website', Info.Website) .. [[
@@ -89,6 +90,7 @@ io.open('./install_' .. Info.PackageName .. '.wxs', 'w+'):write([[
 		<Feature Id="Core" Level="1" Absent="disallow" Title="Everything">
 			<ComponentRef Id="CoreComponent" />
 			]] .. PackageBinaryFeatureItems() .. [[
+			<ComponentRef Id="CoreIcon" />
 			<ComponentRef Id="CoreLicense" />
 			<ComponentRef Id="LuaLicense" />
 			<ComponentRef Id="CoreWebsiteShortcut" />

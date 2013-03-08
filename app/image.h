@@ -1,4 +1,4 @@
-// Copyright 2011 Rendaw, under the FreeBSD license (See included LICENSE.txt)
+// Copyright 2013 Rendaw, under the FreeBSD license (See included license.txt)
 
 #ifndef image_h
 #define image_h

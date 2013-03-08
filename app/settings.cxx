@@ -1,4 +1,4 @@
-// Copyright 2011 Rendaw, under the FreeBSD license (See included LICENSE.txt)
+// Copyright 2013 Rendaw, under the FreeBSD license (See included license.txt)
 
 #include "settings.h"
 
@@ -163,7 +163,7 @@ DeviceSettings &SettingsData::GetDeviceSettings(String const &Name)
 	{
 		Devices[Name] = new DeviceSettings(Name,
 			Get(Name + "_Damping", 0.45f),
-			RangeD(0, 9).Constrain(Get(Name + "_Brush", 0)));
+			RangeD(0, 9).Constrain(Get(Name + "_Brush", 1)));
 	}
 
 	// Return the found/created device info
