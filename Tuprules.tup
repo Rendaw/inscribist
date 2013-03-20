@@ -19,6 +19,11 @@ end
 if tup.getconfig('PLATFORM') == 'windows'
 then
 	CompileFlags = CompileFlags .. ' -DWINDOWS'
+	if tup.getconfig('DEBUG') ~= 'true'
+	then
+		CompileFlags = CompileFlags .. ' -mms-bitfields -mwindows'
+		LinkFlags = LinkFlags .. ' -mwindows'
+	end
 end
 
 CommandPrefix = ''

@@ -60,7 +60,7 @@ ExpandDialog::ExpandDialog(GtkWidget *Window, Image &Sketcher) : Dialog(Window, 
 
 	Okay.SetAction([&]()
 	{
-		Sketcher.Scale(Scale.GetValue());
+		//Sketcher.Scale(Scale.GetValue());
 		Sketcher.Add(AddLeft.GetValue(), AddRight.GetValue(), AddTop.GetValue(), AddBottom.GetValue());
 		Close();
 	});

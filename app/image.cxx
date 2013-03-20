@@ -1266,6 +1266,9 @@ void Image::Add(unsigned int const &Left, unsigned int const &Right, unsigned in
 	bool Unused1, Unused2;
 	Changes.AddUndo(AddChange.Apply(Unused1, Unused2));
 	ModifiedSinceSave = true;
+	ImageSpace.Size[0] = Data->Width;
+	ImageSpace.Size[1] = Data->Rows.size();
+	DisplaySpace.Size = ImageSpace.Size / (float)PixelsBelow;
 }
 
 bool Image::HasChanges(void)

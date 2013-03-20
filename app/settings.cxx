@@ -93,7 +93,7 @@ SettingsData::SettingsData(void) :
 			RotatedBrush * 0.1f +
 			powf(RotatedBrush / 10.0f, 4.0f) * 49.0f;
 		Brushes.push_back(new BrushSettings(
-			Get("Brush" + AsString(CurrentBrush) + "_Black", true),
+			Get("Brush" + AsString(CurrentBrush) + "_Black", (CurrentBrush % 2) == 1),
 			HeavyDiameterRange.Constrain(Get("Brush" + AsString(CurrentBrush) + "_HeavyDiameter", HeavyDiameterDefault)),
 			LightDiameterRange.Constrain(Get("Brush" + AsString(CurrentBrush) + "_LightDiameter", LightDiameterDefault))));
 	}
