@@ -50,7 +50,7 @@ class MainWindow : public Window
 				State.LastDevice = CurrentDevice;
 				State.Device = &Settings.GetDeviceSettings(gdk_device_get_name(CurrentDevice));
 				State.Brush = &Settings.GetBrushSettings(State.Device->Brush);
-				ToolbarSizeIndicator.SetText(AsString((int)State.Brush->HeavyDiameter));
+				UpdateBrushSizeIndicator();
 				SetBackgroundColor(ToolbarColorIndicator, State.Brush->Black ? Settings.DisplayInk : Settings.DisplayPaper);
 			}
 
@@ -143,7 +143,7 @@ class MainWindow : public Window
 					State.Device->Brush = KeyCode - GDK_KEY_0;
 					State.Brush = &Settings.GetBrushSettings(State.Device->Brush);
 
-					ToolbarSizeIndicator.SetText(AsString((int)State.Brush->HeavyDiameter));
+					UpdateBrushSizeIndicator();
 					SetBackgroundColor(ToolbarColorIndicator, State.Brush->Black ? Settings.DisplayInk : Settings.DisplayPaper);
 				}
 			}
@@ -434,7 +434,7 @@ class MainWindow : public Window
 			ConfigureButton(Local("Settings"), diConfigure),
 			ToolbarIndicatorToolbar(gtk_toolbar_new()),
 			ToolbarColorIndicator(gtk_drawing_area_new()),
-			ToolbarSizeIndicator("--"),
+			ToolbarSizeIndicator(""),
 
 			Scroller(gtk_scrolled_window_new(NULL, NULL)),
 			Canvas(gtk_drawing_area_new()),
@@ -546,6 +546,13 @@ class MainWindow : public Window
 		~MainWindow(void)
 		{
 			delete Sketcher;
+		}
+
+		void UpdateBrushSizeIndicator(void)
+		{
+			MemoryStream Text;
+			Text << OutputStream::Float(State.Brush->HeavyDiameter).MaxFractionalDigits(2);
+			ToolbarSizeIndicator.SetText(Text);
 		}
 
 		void New(void)
@@ -678,7 +685,7 @@ class MainWindow : public Window
 			// Refresh setting stats in corner
 			if (State.Brush != NULL)
 			{
-				ToolbarSizeIndicator.SetText(AsString((int)State.Brush->HeavyDiameter));
+				UpdateBrushSizeIndicator();
 				SetBackgroundColor(ToolbarColorIndicator, State.Brush->Black ? Settings.DisplayInk : Settings.DisplayPaper);
 			}
 		}
