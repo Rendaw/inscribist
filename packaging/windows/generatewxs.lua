@@ -77,7 +77,7 @@ io.open('./install_' .. Info.PackageName .. '.wxs', 'w+'):write([[
 			 <Directory Id="ProgramMenuFolder">
 			 	<Directory Id="ProgramMenuSubfolder" Name="]] .. Info.PackageName .. [[">
 					<Component Id="ApplicationShortcuts" Guid="*">
-						<Shortcut Id="ApplicationShortcutFile" Name="]] .. Info.PackageName .. [[" Target="[APPLICATIONFOLDER]inscribist.exe" WorkingDirectory="APPLICATIONFOLDER" Icon="Icon32" />
+						<Shortcut Id="ApplicationShortcutFile" Name="]] .. Info.PackageName .. [[" Target="[APPLICATIONFOLDER]inscribist.exe" WorkingDirectory="PersonalFolder" Icon="Icon32" />
 						<RegistryValue Root="HKCU" Key="Software\]] .. Info.Company .. [[\]] .. Info.PackageName .. [[" Name="ApplicationShortcutFile" Type="integer" Value="1" KeyPath="yes"/>
 						<RemoveFolder Id="ProgramMenuSubfolder" On="uninstall"/>
 					</Component>

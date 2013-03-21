@@ -6,7 +6,7 @@ NormalizeSlashes = function(Filename)
 	return string.gsub(Filename, '\\', '/')
 end
 
-CompileFlags = '-std=gnu++11 -Wall -pedantic -Wextra ' .. tup.getconfig('CFLAGS') .. ' -I' .. NormalizeSlashes(tup.getcwd()) .. ' -DREVISION=' .. tup.getconfig('VERSION') .. ' -DDATALOCATION=\\"' .. tup.getconfig('DATADIRECTORY') .. '\\" ' .. tup.getconfig('INCLUDEDIRECTORIES')
+CompileFlags = '-std=gnu++11 -Wall -pedantic -Wextra ' .. tup.getconfig('CFLAGS') .. ' -I' .. NormalizeSlashes(tup.getcwd()) .. ' -DREVISION=' .. tup.getconfig('VERSION') .. ' ' .. tup.getconfig('INCLUDEDIRECTORIES')
 LinkFlags = '-Wall -pedantic ' .. tup.getconfig('LIBDIRECTORIES')
 LinkLibraries = tup.getconfig('LINKFLAGS')
 if tup.getconfig('DEBUG') == 'true'
@@ -24,6 +24,10 @@ then
 		CompileFlags = CompileFlags .. ' -mms-bitfields -mwindows'
 		LinkFlags = LinkFlags .. ' -mwindows'
 	end
+end
+if tup.getconfig('DEBUG') == 'true' or tup.getconfig('PLATFORM') ~= 'windows'
+then
+	CompileFlags = CompileFlags .. ' -DRENGENERAL_FILESYSTEM_DATALOCATION=\\"' .. tup.getconfig('DATADIRECTORY') .. '\\" '
 end
 
 CommandPrefix = ''

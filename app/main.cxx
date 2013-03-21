@@ -446,7 +446,7 @@ class MainWindow : public Window
 		{
 			// Construct the window
 			SetDefaultSize({400, 440});
-			SetIcon(DataLocation.Select("icon32.png"));
+			SetIcon(LocateDataDirectory().Select("icon32.png"));
 			SetAttemptCloseHandler([&](void) -> bool
 			{
 				if (!ConfirmClose()) return false;
@@ -742,12 +742,6 @@ int main(int ArgumentCount, char **Arguments)
 		if ((Filename == "-v") || (Filename == "--version"))
 		{
 			std::cout << "Inscribist, revision " << Revision << std::endl;
-#ifdef SETTINGSLOCATION
-			std::cout << "Compile-configured settings filename: " << SETTINGSLOCATION << std::endl;
-#endif
-#ifdef DATALOCATION
-			std::cout << "Compile-configured data location: " << DATALOCATION << std::endl;
-#endif
 #ifndef NDEBUG
 			std::cout << "Assertions are enabled." << std::endl;
 #endif
