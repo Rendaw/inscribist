@@ -6,6 +6,7 @@
 #include <iostream>
 #include <cassert>
 #include <cmath>
+#include <tuple>
 
 #include "ren-general/vector.h"
 #include "ren-general/range.h"
@@ -121,126 +122,97 @@ class MainWindow : public Window
 		}
 
 		// Event handlers
-		bool Type(unsigned int KeyCode, unsigned int Modifier)
+		void ToggleBrushColor(void)
 		{
-			if ((KeyCode == GDK_KEY_Tab) ||
-				(KeyCode == GDK_KEY_plus) ||
-				(KeyCode == GDK_KEY_space))
+			if (State.Brush != NULL)
 			{
-				/// Toggle draw mode key pressed
-				if (State.Brush != NULL)
-				{
-					State.Brush->Black = !State.Brush->Black;
+				State.Brush->Black = !State.Brush->Black;
 
-					SetBackgroundColor(ToolbarColorIndicator, State.Brush->Black ? Settings.DisplayInk : Settings.DisplayPaper);
-				}
+				SetBackgroundColor(ToolbarColorIndicator, State.Brush->Black ? Settings.DisplayInk : Settings.DisplayPaper);
 			}
-			else if (RangeD(GDK_KEY_0, GDK_KEY_9).Contains(KeyCode))
+		}
+
+		void SelectBrush(unsigned int Index)
+		{
+			if (State.Device != NULL)
 			{
-				/// Change brush size key pressed
-				if (State.Device != NULL)
-				{
-					State.Device->Brush = KeyCode - GDK_KEY_0;
-					State.Brush = &Settings.GetBrushSettings(State.Device->Brush);
+				State.Device->Brush = Index;
+				State.Brush = &Settings.GetBrushSettings(State.Device->Brush);
 
-					UpdateBrushSizeIndicator();
-					SetBackgroundColor(ToolbarColorIndicator, State.Brush->Black ? Settings.DisplayInk : Settings.DisplayPaper);
-				}
+				UpdateBrushSizeIndicator();
+				SetBackgroundColor(ToolbarColorIndicator, State.Brush->Black ? Settings.DisplayInk : Settings.DisplayPaper);
 			}
-			else if ((KeyCode == GDK_bracketleft) || (KeyCode == GDK_bracketright))
+		}
+
+		void Zoom(int Change)
+		{
+			/// Zoom key pressed
+			// Save the focus
+			if (!LookingAtSet)
+				LookingAt = GetImageFocusPercent();
+			LookingAtSet = true;
+
+			// Do the zoom
+			Sketcher->Zoom(Change);
+			/*if ((KeyCode == GDK_bracketleft) || (KeyCode == GDK_KEY_KP_Add))
+				Sketcher->Zoom(1);
+			else Sketcher->Zoom(-1);*/
+
+			// Resize the window
+			SizeCanvasAppropriately();
+		}
+
+		void Flip(bool Horizontal)
+		{
+			GdkRectangle Region = {0, 0, Canvas->allocation.width, Canvas->allocation.height};
+			gdk_window_invalidate_rect(Canvas->window, &Region, false);
+
+			if (Horizontal)
 			{
-				/// Zoom key pressed
-				// Save the focus
-				if (!LookingAtSet)
-					LookingAt = GetImageFocusPercent();
-				LookingAtSet = true;
-
-				// Do the zoom
-				if (KeyCode == GDK_bracketleft)
-					Sketcher->Zoom(1);
-				else Sketcher->Zoom(-1);
-
-				// Resize the window
-				SizeCanvasAppropriately();
+				Sketcher->FlipHorizontally();
+				SetAdjustment(gtk_scrolled_window_get_hadjustment(GTK_SCROLLED_WINDOW(Scroller)),
+					1.0f - GetImageFocusPercent()[0],
+					Sketcher->GetDisplaySize()[0], ImageOffset[0], Sketcher->GetDisplaySize()[0] + 2.0f * ImageOffset[0]);
 			}
-			else if ((KeyCode == GDK_KEY_s) && (Modifier & GDK_CONTROL_MASK))
+			else
 			{
-				/// Save combo
-				// If using a default file name, show a prompt
-				if (SaveFilename == NewFilename) SaveAs();
-				else // Otherwise, just save
-					Sketcher->Save(SaveFilename);
+				Sketcher->FlipVertically();
+				SetAdjustment(gtk_scrolled_window_get_vadjustment(GTK_SCROLLED_WINDOW(Scroller)),
+					1.0f - GetImageFocusPercent()[1],
+					Sketcher->GetDisplaySize()[1], ImageOffset[1], Sketcher->GetDisplaySize()[1] + 2.0f * ImageOffset[1]);
 			}
-			else if ((KeyCode == GDK_KEY_S) && (Modifier & GDK_CONTROL_MASK))
-				/// Save-as combo
-				SaveAs();
-			else if ((KeyCode == GDK_KEY_v) || (KeyCode == GDK_KEY_h))
-			{
-				/// Vertical and horizontal flipping
-				GdkRectangle Region = {0, 0, Canvas->allocation.width, Canvas->allocation.height};
-				gdk_window_invalidate_rect(Canvas->window, &Region, false);
 
-				if (KeyCode == GDK_KEY_h)
-				{
-					Sketcher->FlipHorizontally();
-					SetAdjustment(gtk_scrolled_window_get_hadjustment(GTK_SCROLLED_WINDOW(Scroller)),
-						1.0f - GetImageFocusPercent()[0],
-						Sketcher->GetDisplaySize()[0], ImageOffset[0], Sketcher->GetDisplaySize()[0] + 2.0f * ImageOffset[0]);
-				}
-				else
-				{
-					Sketcher->FlipVertically();
-					SetAdjustment(gtk_scrolled_window_get_vadjustment(GTK_SCROLLED_WINDOW(Scroller)),
-						1.0f - GetImageFocusPercent()[1],
-						Sketcher->GetDisplaySize()[1], ImageOffset[1], Sketcher->GetDisplaySize()[1] + 2.0f * ImageOffset[1]);
-				}
+			gdk_window_process_updates(Canvas->window, false); // Unnecessary as long as adjustment updates do it
+		}
 
-				gdk_window_process_updates(Canvas->window, false); // Unnecessary as long as adjustment updates do it
-			}
-			else if ((KeyCode == GDK_KEY_Left) || 
-				(KeyCode == GDK_KEY_Right) || 
-				(KeyCode == GDK_KEY_Up) || 
-				(KeyCode == GDK_KEY_Down))
-			{
-				// Rolling the image - holding shift reduces the shift to 1 screen pixel, otherwise 50 pixels or so
-				GdkRectangle Region = {0, 0, Canvas->allocation.width, Canvas->allocation.height};
-				gdk_window_invalidate_rect(Canvas->window, &Region, false);
-				Sketcher->Shift(Modifier & GDK_SHIFT_MASK ? false : true,
-					(KeyCode == GDK_KEY_Left) ? -1 : 
-						((KeyCode == GDK_KEY_Right) ? 1 : 0),
-					(KeyCode == GDK_KEY_Up) ? -1 : 
-						((KeyCode == GDK_KEY_Down) ? 1 : 0));
-				gdk_window_process_updates(Canvas->window, false);
-			}
-			else if (((KeyCode == GDK_KEY_Z) || (KeyCode == GDK_KEY_y) ||
-				(KeyCode == GDK_KEY_z)) && (Modifier & GDK_CONTROL_MASK))
-			{
-				/// Undo, redo
-				// May have to move the screen if it un-flips
+		void Roll(bool Careful, int Horizontal, bool Vertical)
+		{
+			GdkRectangle Region = {0, 0, Canvas->allocation.width, Canvas->allocation.height};
+			gdk_window_invalidate_rect(Canvas->window, &Region, false);
+			Sketcher->Shift(!Careful, Horizontal, Vertical);
+			gdk_window_process_updates(Canvas->window, false);
+		}
 
-				GdkRectangle Region = {0, 0, Canvas->allocation.width, Canvas->allocation.height};
-				gdk_window_invalidate_rect(Canvas->window, &Region, false);
+		void UndoRedo(bool Undo)
+		{
+			GdkRectangle Region = {0, 0, Canvas->allocation.width, Canvas->allocation.height};
+			gdk_window_invalidate_rect(Canvas->window, &Region, false);
 
-				bool FlippedHorizontally, FlippedVertically;
-				if ((KeyCode == GDK_KEY_Z) || (KeyCode == GDK_KEY_y))
-					Sketcher->Redo(FlippedHorizontally, FlippedVertically);
-				else Sketcher->Undo(FlippedHorizontally, FlippedVertically);
+			bool FlippedHorizontally, FlippedVertically;
+			if (Undo) Sketcher->Undo(FlippedHorizontally, FlippedVertically);
+			else Sketcher->Redo(FlippedHorizontally, FlippedVertically);
 
-				if (FlippedHorizontally)
-					SetAdjustment(gtk_scrolled_window_get_hadjustment(GTK_SCROLLED_WINDOW(Scroller)),
-						1.0f - GetImageFocusPercent()[0],
-						Sketcher->GetDisplaySize()[0], ImageOffset[0], Sketcher->GetDisplaySize()[0] + 2.0f * ImageOffset[0]);
+			if (FlippedHorizontally)
+				SetAdjustment(gtk_scrolled_window_get_hadjustment(GTK_SCROLLED_WINDOW(Scroller)),
+					1.0f - GetImageFocusPercent()[0],
+					Sketcher->GetDisplaySize()[0], ImageOffset[0], Sketcher->GetDisplaySize()[0] + 2.0f * ImageOffset[0]);
 
-				if (FlippedVertically)
-					SetAdjustment(gtk_scrolled_window_get_vadjustment(GTK_SCROLLED_WINDOW(Scroller)),
-						1.0f - GetImageFocusPercent()[1],
-						Sketcher->GetDisplaySize()[1], ImageOffset[1], Sketcher->GetDisplaySize()[1] + 2.0f * ImageOffset[1]);
+			if (FlippedVertically)
+				SetAdjustment(gtk_scrolled_window_get_vadjustment(GTK_SCROLLED_WINDOW(Scroller)),
+					1.0f - GetImageFocusPercent()[1],
+					Sketcher->GetDisplaySize()[1], ImageOffset[1], Sketcher->GetDisplaySize()[1] + 2.0f * ImageOffset[1]);
 
-				gdk_window_process_updates(Canvas->window, false);
-			}
-			else return false; // We didn't eat the key
-
-			return true;
+			gdk_window_process_updates(Canvas->window, false);
 		}
 
 		void Draw(GdkEventExpose *Event)
@@ -444,6 +416,45 @@ class MainWindow : public Window
 
 			PanOffsetSet(false), ViewportUpdateSignalHandler(0)
 		{
+			// Setup key callbacks
+			KeyCallbacks[std::make_tuple(GDK_KEY_Tab, false)] = [this]() { ToggleBrushColor(); };
+			KeyCallbacks[std::make_tuple(GDK_KEY_plus, false)] = [this]() { ToggleBrushColor(); };
+			KeyCallbacks[std::make_tuple(GDK_KEY_space, false)] = [this]() { ToggleBrushColor(); };
+			for (unsigned int Index = 0; Index < 10; ++Index)
+			{
+				KeyCallbacks[std::make_tuple(GDK_KEY_0 + Index, false)] = [this, Index]() { SelectBrush(Index); };
+				KeyCallbacks[std::make_tuple(GDK_KEY_KP_0 + Index, false)] = [this, Index]() { SelectBrush(Index); };
+			}
+			KeyCallbacks[std::make_tuple(GDK_bracketleft, false)] = [this]() { Zoom(-1); };
+			KeyCallbacks[std::make_tuple(GDK_KEY_KP_Add, false)] = [this]() { Zoom(-1); };
+			KeyCallbacks[std::make_tuple(GDK_bracketright, false)] = [this]() { Zoom(1); };
+			KeyCallbacks[std::make_tuple(GDK_KEY_KP_Subtract, false)] = [this]() { Zoom(1); };
+			KeyCallbacks[std::make_tuple(GDK_KEY_s, true)] = [this]() 
+			{ 
+				if (SaveFilename == NewFilename) SaveAs();
+				else Sketcher->Save(SaveFilename);
+			};
+			KeyCallbacks[std::make_tuple(GDK_KEY_S, true)] = [this]() { SaveAs(); };
+			for (auto const &Key : std::list<unsigned int>{GDK_KEY_v, GDK_KEY_KP_Divide})
+				KeyCallbacks[std::make_tuple(Key, false)] = [this]() { Flip(false); };
+			for (auto const &Key : std::list<unsigned int>{GDK_KEY_h, GDK_KEY_KP_Multiply})
+				KeyCallbacks[std::make_tuple(Key, false)] = [this]() { Flip(true); };
+			for (auto const &Key : std::list<unsigned int>{GDK_KEY_Left, GDK_KEY_KP_Left})
+				for (auto const &Careful : std::list<unsigned int>{false, true})
+					KeyCallbacks[std::make_tuple(Key, Careful)] = [this, Careful]() { Roll(Careful, -1, 0); };
+			for (auto const &Key : std::list<unsigned int>{GDK_KEY_Right, GDK_KEY_KP_Right})
+				for (auto const &Careful : std::list<unsigned int>{false, true})
+					KeyCallbacks[std::make_tuple(Key, Careful)] = [this, Careful]() { Roll(Careful, 1, 0); };
+			for (auto const &Key : std::list<unsigned int>{GDK_KEY_Up, GDK_KEY_KP_Up})
+				for (auto const &Careful : std::list<unsigned int>{false, true})
+					KeyCallbacks[std::make_tuple(Key, Careful)] = [this, Careful]() { Roll(Careful, 0, -1); };
+			for (auto const &Key : std::list<unsigned int>{GDK_KEY_Down, GDK_KEY_KP_Down})
+				for (auto const &Careful : std::list<unsigned int>{false, true})
+					KeyCallbacks[std::make_tuple(Key, Careful)] = [this, Careful]() { Roll(Careful, 0, 1); };
+			KeyCallbacks[std::make_tuple(GDK_KEY_z, true)] = [this]() { UndoRedo(true); };
+			for (auto const &Key : std::list<unsigned int>{GDK_KEY_Z, GDK_KEY_y})
+				KeyCallbacks[std::make_tuple(Key, true)] = [this]() { UndoRedo(false); };
+
 			// Construct the window
 			SetDefaultSize({400, 440});
 			SetIcon(LocateDataDirectory().Select("icon32.png"));
@@ -459,7 +470,12 @@ class MainWindow : public Window
 			SetResizeHandler([&]() { ResizeImageViewport(); });
 			WindowKeys.SetHandler(
 				[&](unsigned int KeyCode, unsigned int Modifier)
-					{ return Type(KeyCode, Modifier); });
+				{ 
+					auto Found = KeyCallbacks.find(std::make_tuple(KeyCode, Modifier & GDK_CONTROL_MASK));
+					if (Found == KeyCallbacks.end()) return false;
+					Found->second();
+					return true;
+				});
 
 			// Set up toolbar area
 			NewButton.SetAction([&]() { New(); });
@@ -540,7 +556,6 @@ class MainWindow : public Window
 
 				gdk_device_set_mode(CurrentDevice, GDK_MODE_SCREEN);
 			}
-			
 		}
 
 		~MainWindow(void)
@@ -692,6 +707,7 @@ class MainWindow : public Window
 
 	private:
 		KeyboardWidget WindowKeys;
+		std::map<std::tuple<unsigned int, bool>, std::function<void(void)>> KeyCallbacks;
 		SettingsData &Settings;
 		String SaveFilename;
 
