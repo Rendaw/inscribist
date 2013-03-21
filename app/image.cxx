@@ -506,6 +506,7 @@ void RunData::Remove(unsigned int const Left, unsigned int const Right, unsigned
 void RunData::Enlarge(unsigned int const Factor)
 {
 	assert(Factor >= 1);
+	if (Factor == 1) return;
 	unsigned int const OriginalHeight = Rows.size();
 	Rows.resize(OriginalHeight * Factor);
 	Width *= Factor;
@@ -526,6 +527,7 @@ void RunData::Shrink(unsigned int const Factor)
 {
 	assert(Width % Factor == 0);
 	assert(Rows.size() % Factor == 0);
+	assert(Factor != 1);
 	unsigned int const NewHeight = Rows.size() / Factor;
 	Width /= Factor;
 	for (unsigned int RowIndex = 0; RowIndex < NewHeight; ++RowIndex)
