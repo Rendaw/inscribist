@@ -696,7 +696,7 @@ class MainWindow : public Window
 
 		void Configure(void)
 		{
-			OpenSettings(*this, Settings);
+			OpenSettings(*this, Settings, Sketcher->GetSize());
 
 			SetBackgroundColor(Canvas, Color(Settings.DisplayPaper * BackgroundColorScale,
 				Settings.DisplayPaper.Alpha * BackgroundColorScale + (1.0f - BackgroundColorScale)));

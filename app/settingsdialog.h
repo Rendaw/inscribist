@@ -9,7 +9,7 @@
 class SettingsDialog : public Dialog
 {
 	public:
-		SettingsDialog(GtkWidget *Window, SettingsData &Settings);
+		SettingsDialog(GtkWidget *Window, SettingsData &Settings, FlatVector const &CurrentSize);
 		~SettingsDialog(void);
 
 	private:
@@ -30,8 +30,12 @@ class SettingsDialog : public Dialog
 
 		LayoutBorder ExportFrame;
 		Layout ExportBox;
+		Layout ExportPaperPadding, ExportInkPadding;
 		ColorButton ExportPaperColor, ExportInkColor;
+		Layout ExportScaleBox;
 		Wheel ExportScale;
+		Label ExportWidth;
+		Label ExportHeight;
 
 		struct BrushSection
 		{
@@ -59,6 +63,6 @@ class SettingsDialog : public Dialog
 		Button Cancel;
 };
 
-void OpenSettings(GtkWidget *Window, SettingsData &Settings);
+void OpenSettings(GtkWidget *Window, SettingsData &Settings, FlatVector const &CurrentSize);
 
 #endif

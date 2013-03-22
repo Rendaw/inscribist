@@ -34,7 +34,7 @@ SettingsDialog::DeviceSection::DeviceSection(DeviceSettings &Settings, unsigned 
 	Set(DeviceBox);
 }
 
-SettingsDialog::SettingsDialog(GtkWidget *Window, SettingsData &Settings) :
+SettingsDialog::SettingsDialog(GtkWidget *Window, SettingsData &Settings, FlatVector const &CurrentSize) :
 	Dialog(Window, Local("Settings"), {0, 500}), Settings(Settings),
 	SettingsTitle(Local("Settings")),
 	SettingsBox(false, 6, 2),
@@ -52,9 +52,12 @@ SettingsDialog::SettingsDialog(GtkWidget *Window, SettingsData &Settings) :
 
 	ExportFrame(Local("Export settings")),
 	ExportBox(true, 3, 16),
+	ExportPaperPadding(false), ExportInkPadding(false),
 	ExportPaperColor(Local("Paper color: "), Settings.ExportPaper, true),
 	ExportInkColor(Local("Ink color: "), Settings.ExportInk, true),
+	ExportScaleBox(false),
 	ExportScale(Local("Downscale: "), ScaleRange, ScaleRange.Constrain(Settings.ExportScale)),
+	ExportWidth(""), ExportHeight(""),
 
 	Okay(Local("Okay"), diSave),
 	Cancel(Local("Cancel"), diClose)
@@ -91,11 +94,24 @@ SettingsDialog::SettingsDialog(GtkWidget *Window, SettingsData &Settings) :
 	SettingsBox.Add(DisplayFrame);
 
 	/// Export settings
-	ExportBox.AddFill(ExportPaperColor);
+	auto UpdateExportLabels = [this, CurrentSize]()
+	{
+		ExportWidth.SetText(Local("Width: ^0", CurrentSize[0] / ExportScale.GetValue()));
+		ExportHeight.SetText(Local("Height: ^0", CurrentSize[1] / ExportScale.GetValue()));
+	};
+	UpdateExportLabels();
+	ExportScale.SetInputHandler(UpdateExportLabels);
+	
+	ExportPaperPadding.Add(ExportPaperColor);
+	ExportBox.AddFill(ExportPaperPadding);
 	ExportBox.AddSpace(); ExportBox.AddSpacer(); ExportBox.AddSpace();
-	ExportBox.AddFill(ExportInkColor);
+	ExportInkPadding.Add(ExportInkColor);
+	ExportBox.AddFill(ExportInkPadding);
 	ExportBox.AddSpace(); ExportBox.AddSpacer(); ExportBox.AddSpace();
-	ExportBox.AddFill(ExportScale);
+	ExportScaleBox.Add(ExportScale);
+	ExportScaleBox.Add(ExportWidth);
+	ExportScaleBox.Add(ExportHeight);
+	ExportBox.AddFill(ExportScaleBox);
 	ExportFrame.Set(ExportBox);
 	SettingsBox.Add(ExportFrame);
 
@@ -171,8 +187,8 @@ SettingsDialog::~SettingsDialog(void)
 		delete *CurrentBrushSection;
 }
 
-void OpenSettings(GtkWidget *Window, SettingsData &Settings)
+void OpenSettings(GtkWidget *Window, SettingsData &Settings, FlatVector const &CurrentSize)
 {
-	SettingsDialog Dialog(Window, Settings);
+	SettingsDialog Dialog(Window, Settings, CurrentSize);
 	Dialog.Run();
 }
