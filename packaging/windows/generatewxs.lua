@@ -56,6 +56,8 @@ io.open('./install_' .. Info.PackageName .. '.wxs', 'w+'):write([[
 		<!-- AdvancedUI stuff - also requires APPLICATIONFOLDER as Id below -->
 		<UIRef Id="WixUI_Advanced" />
 		<WixVariable Id="WixUILicenseRtf" Value="licenses.rtf" />
+		<WixVariable Id="WixUIBannerBmp" Value="topbanner.bmp" />
+		<WixVariable Id="WixUIDialogBmp" Value="tallbanner.bmp" />
 		<Property Id="ApplicationFolderName" Value="]] .. Info.PackageName .. [[" />
 		<Property Id="WixAppFolder" Value="WixPerMachineFolder" />
 
