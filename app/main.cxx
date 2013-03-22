@@ -154,9 +154,6 @@ class MainWindow : public Window
 
 			// Do the zoom
 			Sketcher->Zoom(Change);
-			/*if ((KeyCode == GDK_bracketleft) || (KeyCode == GDK_KEY_KP_Add))
-				Sketcher->Zoom(1);
-			else Sketcher->Zoom(-1);*/
 
 			// Resize the window
 			SizeCanvasAppropriately();
@@ -185,7 +182,7 @@ class MainWindow : public Window
 			gdk_window_process_updates(Canvas->window, false); // Unnecessary as long as adjustment updates do it
 		}
 
-		void Roll(bool Careful, int Horizontal, bool Vertical)
+		void Roll(bool Careful, int Horizontal, int Vertical)
 		{
 			GdkRectangle Region = {0, 0, Canvas->allocation.width, Canvas->allocation.height};
 			gdk_window_invalidate_rect(Canvas->window, &Region, false);
@@ -217,6 +214,11 @@ class MainWindow : public Window
 
 		void Draw(GdkEventExpose *Event)
 		{
+			if (FirstDraw)
+			{
+				gtk_widget_grab_focus(Canvas);
+				FirstDraw = false;
+			}
 			cairo_t *CairoContext = gdk_cairo_create(Event->window);
 
 			cairo_rectangle(CairoContext, (int)Event->area.x, (int)Event->area.y,
@@ -412,12 +414,18 @@ class MainWindow : public Window
 			Canvas(gtk_drawing_area_new()),
 
 			Sketcher(new Image(Settings, SaveFilename)),
+			FirstDraw(true),
 			LookingAtSet(false),
 
 			PanOffsetSet(false), ViewportUpdateSignalHandler(0)
 		{
 			// Setup key callbacks
-			KeyCallbacks[std::make_tuple(GDK_KEY_Tab, false)] = [this]() { ToggleBrushColor(); };
+			for (auto const &Key : std::list<unsigned int>{
+					GDK_KEY_Tab, 
+					GDK_KEY_space, 
+					GDK_KEY_KP_Enter,
+					GDK_KEY_Return})
+				KeyCallbacks[std::make_tuple(Key, false)] = [this]() { ToggleBrushColor(); };
 			KeyCallbacks[std::make_tuple(GDK_KEY_plus, false)] = [this]() { ToggleBrushColor(); };
 			KeyCallbacks[std::make_tuple(GDK_KEY_space, false)] = [this]() { ToggleBrushColor(); };
 			for (unsigned int Index = 0; Index < 10; ++Index)
@@ -525,6 +533,8 @@ class MainWindow : public Window
 			g_signal_connect(Canvas, "button-press-event", G_CALLBACK(ClickCallback), this);
 			g_signal_connect(Canvas, "button-release-event", G_CALLBACK(DeclickCallback), this);
 			g_signal_connect(Canvas, "motion-notify-event", G_CALLBACK(MoveCallback), this);
+			gtk_widget_set_can_focus(Canvas, true);
+			gtk_widget_set_can_default(Canvas, true);
 
 			gtk_scrolled_window_add_with_viewport(GTK_SCROLLED_WINDOW(Scroller), Canvas);
 			gtk_widget_show(Canvas);
@@ -726,6 +736,9 @@ class MainWindow : public Window
 		Image *Sketcher;
 
 		CursorState State, LastState;
+
+		// Used for keeping the focus off the toolbar
+		bool FirstDraw;
 
 		// Offset of corner of image from corner of canvas
 		FlatVector ImageOffset;
