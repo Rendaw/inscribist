@@ -6,6 +6,25 @@ local UpgradeGUID = '628A99DD-AEE3-423E-B949-4781D97D98B5'
 local PackageGUID = 'E2D0EB03-D081-4BFD-B2BD-87BB8F5EFDAC'
 local Version = '1.' .. tostring(Info.Version) .. '.0'
 
+local LanguageCode = 1033
+local LanguageCodepageCode = 1252
+local Language = ''
+local LanguageSuffix = ''
+if arg[1] 
+then 
+	Language = arg[1] 
+	LanguageSuffix = '-' .. Language
+	local LanguageCodes = {
+		['ja'] = {1041, 932}
+	}
+	if LanguageCodes[Language] then
+		LanguageCode = LanguageCodes[Language][1]
+		LanguageCodepageCode = LanguageCodes[Language][2]
+	end
+end
+
+local TranslationItems = {'atk10', 'gdk-pixbuf', 'gettext-runtime', 'glib20', 'gtk20', 'gtk20-properties'}
+
 function FileComponent(Indentation, ID, Filename)
 	Pre = ('\t'):rep(Indentation)
 	return 
@@ -32,6 +51,30 @@ function PackageBinaryFeatureItems()
 	return table.concat(Out, '\t\t\t')
 end
 
+function PackageTranslationComponents()
+	if not Language then return '' end
+	Out = {}
+	Pre = ('\t'):rep(9)
+	for Index, File in ipairs(TranslationItems)
+	do
+		table.insert(Out, 
+			[[<Component Id="CoreComponentTranslation]] .. Index .. [[" Guid="*">]] .. '\n' ..
+			Pre .. '\t' .. [[<File Id="CoreComponentTranslation]] .. Index .. [[File" Source="]] .. GtkTranslationPath .. '\\' .. Language .. '\\LC_MESSAGES\\' .. File .. [[.mo" KeyPath="yes" />]] .. '\n' ..
+			Pre .. [[</Component>]] .. '\n')
+	end
+	return table.concat(Out, '\t\t\t\t\t\t\t\t\t')
+end
+
+function PackageTranslationFeatureItems()
+	if not Language then return '' end
+	Out = {}
+	for Index, File in ipairs(TranslationItems)
+	do
+		table.insert(Out, '<ComponentRef Id="CoreComponentTranslation' .. Index .. '" />\n')
+	end
+	return table.concat(Out, '\t\t\t')
+end
+
 function WebsiteShortcutComponent(Indentation, ID, Label, URL)
 	Pre = ('\t'):rep(Indentation)
 	return 
@@ -42,11 +85,11 @@ function WebsiteShortcutComponent(Indentation, ID, Label, URL)
 end
 
 
-io.open('./install_' .. Info.PackageName .. '.wxs', 'w+'):write([[
+io.open('./install_' .. Info.PackageName .. LanguageSuffix .. '.wxs', 'w+'):write([[
 <?xml version="1.0"?>
 <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi" xmlns:util="http://schemas.microsoft.com/wix/UtilExtension">
-	<Product Id="*" UpgradeCode="]] .. UpgradeGUID .. [[" Name="]] .. Info.PackageName .. [[" Version="]] .. Version .. [[" Manufacturer="]] .. Info.Company .. [[" Language="1033">
-		<Package InstallerVersion="200" Compressed="yes" Comments="Windows Installer Package" />
+	<Product Id="*" UpgradeCode="]] .. UpgradeGUID .. [[" Name="]] .. Info.PackageName .. [[" Version="]] .. Version .. [[" Manufacturer="]] .. Info.Company .. [[" Language="]] .. LanguageCode .. [[" Codepage="]] .. LanguageCodepageCode .. [[">
+		<Package InstallerVersion="200" Compressed="yes" Comments="Windows Installer Package" Languages="]] .. LanguageCode .. [[" SummaryCodepage="]] .. LanguageCodepageCode .. [[" />
 		<Media Id="1" Cabinet="product.cab" EmbedCab="yes" />
 		<Icon Id="Icon32" SourceFile="..\..\data\icon32.ico" />
 		<Property Id="ARPPRODUCTICON" Value="Icon32" />
@@ -68,6 +111,15 @@ io.open('./install_' .. Info.PackageName .. '.wxs', 'w+'):write([[
 						<File Id="CoreComponentFile" Source="..\..\app\build\inscribist.exe" KeyPath="yes" Checksum="yes" />
 					</Component>
 					]] .. PackageBinaryComponents() .. [[
+					<Directory Id="GETTEXT_share" Name="share">
+						<Directory Id="GETTEXT_locale" Name="locale">
+							<Directory Id="GETTEXT_]] .. Language .. [[" Name="]] .. Language .. [[">
+								<Directory Id="GETTEXT_LC_MESSAGES" Name="LC_MESSAGES">
+									]] .. PackageTranslationComponents() .. [[
+								</Directory>
+							</Directory>
+						</Directory>
+					</Directory>
 					]] .. FileComponent(5, 'CoreIcon', '..\\..\\data\\icon32.png') .. [[
 					]] .. FileComponent(5, 'CoreLicense', '..\\..\\license.txt') .. [[
 					]] .. FileComponent(5, 'LuaLicense', 'lualicense.txt') .. [[
@@ -92,6 +144,7 @@ io.open('./install_' .. Info.PackageName .. '.wxs', 'w+'):write([[
 		<Feature Id="Core" Level="1" Absent="disallow" Title="Everything">
 			<ComponentRef Id="CoreComponent" />
 			]] .. PackageBinaryFeatureItems() .. [[
+			]] .. PackageTranslationFeatureItems() .. [[
 			<ComponentRef Id="CoreIcon" />
 			<ComponentRef Id="CoreLicense" />
 			<ComponentRef Id="LuaLicense" />

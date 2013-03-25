@@ -110,9 +110,6 @@ local Libraries = {
 	{ Name = {'stdc++-6'}, Windows = true, NoLink = true}
 }
 
-function AddPackageLibBinary(LibraryInfo)
-end
-
 for Index, Library in ipairs(Libraries)
 do
 	local LibraryInfo = Discover.CLibrary{Name = Library.Name}
@@ -157,11 +154,14 @@ Guard(function()
 	TupConfig:write '\n'
 end)
 
-Guard(function()
-	if Platform.Family == 'windows'
-	then
+if Platform.Family == 'windows'
+then
+	local TranslationPath = Discover.Flag{Name = 'GtkTranslationPath', Description = 'Path to GTK translation for packaging, if creating non-English packages.  Language subdirectories should be directly underneath this directory (this directory is commonly "locale").', HasValue = true}
+	Guard(function()
 		local PackageInclude, Error = io.open('packaging/windows/package.include.lua', 'w')
 		if not PackageInclude then error(Error) end
+
+		PackageInclude:write('GtkTranslationPath = [[' .. (TranslationPath.Present and TranslationPath.Value or "") .. ']]\n')
 
 		PackageInclude:write 'LibBinaries = {\n'
 		for Index, File in ipairs(PackageLibBinaries)
@@ -169,7 +169,7 @@ Guard(function()
 			PackageInclude:write('\t\'' .. File .. '\',\n')
 		end
 		PackageInclude:write '}\n\n'
-	end
-end)
+	end)
+end
 
 
