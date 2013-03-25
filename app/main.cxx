@@ -498,7 +498,6 @@ class MainWindow : public Window
 			MainToolbar.Add(ConfigureButton);
 
 			ToolbarBox.AddFill(MainToolbar);
-			gtk_toolbar_set_style(GTK_TOOLBAR((GtkWidget *)MainToolbar), GTK_TOOLBAR_BOTH_HORIZ);
 
 			gtk_toolbar_set_show_arrow(GTK_TOOLBAR(ToolbarIndicatorToolbar), false);
 
