@@ -59,6 +59,8 @@ DeviceSettings::DeviceSettings(String const &Name, float Damping, unsigned int B
 SettingsData::SettingsData(void) :
 	LightSettings(LocateUserConfigFile("inscribist.conf"))
 {
+	DefaultDirectory = Get("DefaultDirectory", String());
+
 	ImageSize[0] = Get("ImageSizeX", SizeDefault);
 	ImageSize[1] = Get("ImageSizeY", SizeDefault);
 
@@ -112,6 +114,8 @@ SettingsData::~SettingsData(void)
 
 void SettingsData::Save(void)
 {
+	Set("DefaultDirectory", DefaultDirectory);
+
 	Set("ImageSizeX", ImageSize[0]);
 	Set("ImageSizeY", ImageSize[1]);
 

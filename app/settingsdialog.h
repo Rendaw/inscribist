@@ -19,6 +19,10 @@ class SettingsDialog : public Dialog
 		Scroller SettingsScroller;
 		Layout SettingsBox;
 
+		Layout DefaultDirectoryLayout;
+		CheckButton EnableDefaultDirectory;
+		DirectorySelect SelectDefaultDirectory;
+
 		LayoutBorder NewImageFrame;
 		Layout NewImageBox;
 		Wheel NewImageWidth, NewImageHeight;

@@ -82,6 +82,8 @@ struct SettingsData : private LightSettings
 
 		String Filename; // (Unsaved, but loaded)
 
+		String DefaultDirectory;
+
 		FlatVector ImageSize;
 		Color DisplayPaper, DisplayInk;
 		Color ExportPaper, ExportInk;

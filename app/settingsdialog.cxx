@@ -39,6 +39,11 @@ SettingsDialog::SettingsDialog(GtkWidget *Window, SettingsData &Settings, FlatVe
 	SettingsTitle(Local("Settings")),
 	SettingsBox(false, 6, 2),
 
+	DefaultDirectoryLayout(true),
+	EnableDefaultDirectory(Local("Default directory for new images"), !Settings.DefaultDirectory.empty()),
+	SelectDefaultDirectory("", Settings.DefaultDirectory.empty() ? 
+		(String)LocateWorkingDirectory() : Settings.DefaultDirectory),
+
 	NewImageFrame(Local("New image settings")),
 	NewImageBox(true, 3, 16),
 	NewImageWidth(Local("Width"), SizeRange.Including(Settings.ImageSize[0]), Settings.ImageSize[0]),
@@ -65,6 +70,15 @@ SettingsDialog::SettingsDialog(GtkWidget *Window, SettingsData &Settings, FlatVe
 	//g_signal_connect_swapped((GtkWidget *)*this, "response", G_CALLBACK(gtk_widget_destroy), (GtkWidget *)*this); // Is this necessary?  Not found in ren-gtk
 
 	Add(SettingsTitle);
+
+	// Working directory settings
+	DefaultDirectoryLayout.Add(EnableDefaultDirectory);
+	SelectDefaultDirectory.SetAction([this]()
+	{
+		EnableDefaultDirectory.SetValue(true);
+	});
+	DefaultDirectoryLayout.AddFill(SelectDefaultDirectory);
+	SettingsBox.Add(DefaultDirectoryLayout);
 
 	/// New image settings
 	NewImageBox.AddFill(NewImageWidth);
@@ -142,6 +156,7 @@ SettingsDialog::SettingsDialog(GtkWidget *Window, SettingsData &Settings, FlatVe
 	/// Populate the dialog actions
 	Okay.SetAction([&]()
 	{
+		Settings.DefaultDirectory = EnableDefaultDirectory.GetValue() ?  SelectDefaultDirectory.GetValue() : String();
 		Settings.ImageSize[0] = NewImageWidth.GetValue();
 		Settings.ImageSize[1] = NewImageHeight.GetValue();
 		Settings.DisplayPaper = DisplayPaperColor.GetColor();

@@ -439,7 +439,7 @@ class MainWindow : public Window
 			KeyCallbacks[std::make_tuple(GDK_KEY_KP_Subtract, false)] = [this]() { Zoom(1); };
 			KeyCallbacks[std::make_tuple(GDK_KEY_s, true)] = [this]() 
 			{ 
-				if (SaveFilename == NewFilename) SaveAs();
+				if (SaveFilename.empty()) SaveAs();
 				else Sketcher->Save(SaveFilename);
 			};
 			KeyCallbacks[std::make_tuple(GDK_KEY_S, true)] = [this]() { SaveAs(); };
@@ -592,7 +592,7 @@ class MainWindow : public Window
 				LookingAtSet = true;
 
 				// Clear and update settings
-				SaveFilename = NewFilename;
+				SaveFilename = String();
 
 				delete Sketcher;
 				Sketcher = new Image(Settings);
@@ -606,6 +606,7 @@ class MainWindow : public Window
 		{
 			FileDialog OpenDialog(Local("Open..."), Local("Inscribist images") + " (*" + Extension + ")", this, false);
 			if (!SaveFilename.empty()) OpenDialog.SetFile(SaveFilename);
+			else if (!Settings.DefaultDirectory.empty()) OpenDialog.SetDirectory(DirectoryPath::Qualify(Settings.DefaultDirectory));
 			OpenDialog.AddFilterPass("*" + Extension);
 			OpenDialog.SetDefaultSuffix(Extension);
 
@@ -635,6 +636,7 @@ class MainWindow : public Window
 
 		void SaveAs(void)
 		{
+
 			GtkWidget *Dialog = gtk_file_chooser_dialog_new(Local("Save...").c_str(),
 				GTK_WINDOW((GtkWidget *)*this),
 				GTK_FILE_CHOOSER_ACTION_SAVE,
@@ -642,7 +644,15 @@ class MainWindow : public Window
 				GTK_STOCK_SAVE, GTK_RESPONSE_ACCEPT,
 				NULL);
 			gtk_file_chooser_set_do_overwrite_confirmation(GTK_FILE_CHOOSER(Dialog), true);
-			gtk_file_chooser_set_filename(GTK_FILE_CHOOSER(Dialog), SaveFilename.c_str());
+
+			String Filename = SaveFilename;
+			if (Filename.empty())
+			{
+				if (Settings.DefaultDirectory.empty())
+					Filename = NewFilename;
+				else Filename = DirectoryPath::Qualify(Settings.DefaultDirectory).Select(NewFilename);
+			}
+			gtk_file_chooser_set_filename(GTK_FILE_CHOOSER(Dialog), Filename.c_str());
 
 			GtkFileFilter *NativeFilter = gtk_file_filter_new();
 			gtk_file_filter_set_name(NativeFilter, (Local("Inscribist images") + " (*" + Extension + ")").c_str());
@@ -763,7 +773,7 @@ int main(int ArgumentCount, char **Arguments)
 	SettingsData Settings;
 
 	/// Parse the arguments to override settings and stuff
-	String Filename = NewFilename;
+	String Filename;
 	if (ArgumentCount >= 2)
 	{
 		Filename = Arguments[1];
