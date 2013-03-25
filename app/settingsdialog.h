@@ -38,8 +38,7 @@ class SettingsDialog : public Dialog
 		ColorButton ExportPaperColor, ExportInkColor;
 		Layout ExportScaleBox;
 		Wheel ExportScale;
-		Label ExportWidth;
-		Label ExportHeight;
+		Label ExportSizePreview;
 
 		struct BrushSection
 		{

@@ -62,7 +62,7 @@ SettingsDialog::SettingsDialog(GtkWidget *Window, SettingsData &Settings, FlatVe
 	ExportInkColor(Local("Ink color: "), Settings.ExportInk, true),
 	ExportScaleBox(false),
 	ExportScale(Local("Downscale: "), ScaleRange, ScaleRange.Constrain(Settings.ExportScale)),
-	ExportWidth(""), ExportHeight(""),
+	ExportSizePreview(""),
 
 	Okay(Local("Okay"), diSave),
 	Cancel(Local("Cancel"), diClose)
@@ -110,8 +110,10 @@ SettingsDialog::SettingsDialog(GtkWidget *Window, SettingsData &Settings, FlatVe
 	/// Export settings
 	auto UpdateExportLabels = [this, CurrentSize]()
 	{
-		ExportWidth.SetText(Local("Width: ^0", CurrentSize[0] / ExportScale.GetValue()));
-		ExportHeight.SetText(Local("Height: ^0", CurrentSize[1] / ExportScale.GetValue()));
+		ExportSizePreview.SetText(MemoryStream() << 
+			CurrentSize[0] / ExportScale.GetValue() << 
+			" x " << 
+			CurrentSize[1] / ExportScale.GetValue());
 	};
 	UpdateExportLabels();
 	ExportScale.SetInputHandler(UpdateExportLabels);
@@ -123,8 +125,7 @@ SettingsDialog::SettingsDialog(GtkWidget *Window, SettingsData &Settings, FlatVe
 	ExportBox.AddFill(ExportInkPadding);
 	ExportBox.AddSpace(); ExportBox.AddSpacer(); ExportBox.AddSpace();
 	ExportScaleBox.Add(ExportScale);
-	ExportScaleBox.Add(ExportWidth);
-	ExportScaleBox.Add(ExportHeight);
+	ExportScaleBox.Add(ExportSizePreview);
 	ExportBox.AddFill(ExportScaleBox);
 	ExportFrame.Set(ExportBox);
 	SettingsBox.Add(ExportFrame);
