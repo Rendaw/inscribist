@@ -1,0 +1,25 @@
+# true, false
+CONFIG_DEBUG=true
+
+# arch, ubuntu, windows
+CONFIG_PLATFORM=arch
+
+# g++, clang, cl
+CONFIG_COMPILER=g++
+
+# Extra compile flags
+# Optional
+CONFIG_BUILDFLAGS=
+
+# Extra link flags
+# Optional
+CONFIG_LINKFLAGS=
+
+#|| Project specific config
+
+# Output of pkg-config --cflags gtk+-2.0
+CONFIG_GTKBUILDFLAGS=
+
+# Output of pkg-config --libs gtk+-2.0
+CONFIG_GTKLINKFLAGS=
+

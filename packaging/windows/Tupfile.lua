@@ -1,8 +1,6 @@
 if tup.getconfig('PLATFORM') == 'windows'
 then
-	tup.dorulesfile()
-
-	tup.dofile '../../info.include.lua'
+	DoFile 'info.include.lua'
 	--[[tup.definerule{
 		inputs = {'../../info.include.lua', 'package.include.lua', 'generatewxs.lua'}, 
 		outputs = {'install_' .. Info.PackageName .. '.wxs'},

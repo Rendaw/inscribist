@@ -10,3 +10,6 @@
 [submodule "app/ren-gtk"]
 	path = app/ren-gtk
 	url = ../ren-gtk.git
+[submodule "tupsupport"]
+	path = tupsupport
+	url = ../ren-tupsupport
