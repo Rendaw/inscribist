@@ -3,18 +3,23 @@ DoOnce('app/ren-script/Tupfile.lua')
 DoOnce('app/ren-translation/Tupfile.lua')
 DoOnce('app/ren-gtk/Tupfile.lua')
 
-local SharedSources = Item{'image.cxx', 'settings.cxx'}
+local SharedSources = Item():Include 'image.cxx':Include 'settings.cxx'
 ImageObject = Define.Object
 {
 	Source = Item 'image.cxx',
-	BuildFlags = tup.getconfig('GTKBUILDFLAGS')
 }
 SettingsObject = Define.Object
 {
 	Source = Item 'settings.cxx',
-	BuildFlags = tup.getconfig('GTKBUILDFLAGS')
+}
+InfoHeader = Define.Lua
+{
+	Out = Item 'info.h',
+	Script = 'info2h.lua'
 }
 
+local LinkFlags
+LinkFlags = '-lbz2 -llua'
 App = Define.Executable
 {
 	Name = 'inscribist',
@@ -22,14 +27,16 @@ App = Define.Executable
 	Objects = Item()
 		:Include(ImageObject):Include(SettingsObject)
 		:Include(GeneralObjects):Include(ScriptObjects):Include(TranslationObjects):Include(GTKObjects),
-	BuildFlags = tup.getconfig('GTKBUILDFLAGS'),
-	LinkFlags = tup.getconfig('GTKLINKFLAGS')
+	BuildExtras = InfoHeader,
+	LinkFlags = LinkFlags
 }
 
 Test = Define.Executable
 {
 	Name = 'test',
 	Sources = Item 'test.cxx',
-	Objects = {ImageObject, SettingsObject}
+	Objects = Item():Include(ImageObject):Include(SettingsObject)
+		:Include(GeneralObjects):Include(ScriptObjects):Include(TranslationObjects),
+	LinkFlags = LinkFlags
 }
 

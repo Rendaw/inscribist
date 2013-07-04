@@ -13,11 +13,10 @@
 #include "ren-gtk/gtkwrapper.h"
 #include "ren-translation/translation.h"
 
+#include "info.h"
 #include "image.h"
 #include "settingsdialog.h"
 #include "expanddialog.h"
-
-const int Revision = REVISION;
 
 const float ColorMax = 65535;
 

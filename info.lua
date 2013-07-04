@@ -11,3 +11,9 @@ Info =
 	Author = 'Rendaw',
 	EMail = 'spoo@zarbosoft.com'
 }
+
+if arg and arg[1]
+then
+	print(Info[arg[1]])
+end
+
