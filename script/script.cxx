@@ -1,1 +1,0 @@
-/home/rendaw/created/library/script/script.cxx

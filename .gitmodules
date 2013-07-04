@@ -1,0 +1,12 @@
+[submodule "app/ren-general"]
+	path = app/ren-general
+	url = ../ren-general.git
+[submodule "app/ren-script"]
+	path = app/ren-script
+	url = ../ren-script.git
+[submodule "app/ren-translation"]
+	path = app/ren-translation
+	url = git@github.com:Rendaw/ren-translation.git
+[submodule "app/ren-gtk"]
+	path = app/ren-gtk
+	url = ../ren-gtk.git

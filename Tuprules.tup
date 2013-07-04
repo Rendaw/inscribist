@@ -1,0 +1,58 @@
+StripPath = function(Filename)
+	return string.gsub(Filename, '[^/]*/', '')
+end
+
+NormalizeSlashes = function(Filename)
+	return string.gsub(Filename, '\\', '/')
+end
+
+CompileFlags = '-std=gnu++11 -Wall -pedantic -Wextra ' .. tup.getconfig('CFLAGS') .. ' -I' .. NormalizeSlashes(tup.getcwd()) .. ' -DREVISION=' .. tup.getconfig('VERSION') .. ' ' .. tup.getconfig('INCLUDEDIRECTORIES')
+LinkFlags = '-Wall -pedantic ' .. tup.getconfig('LIBDIRECTORIES')
+LinkLibraries = tup.getconfig('LINKFLAGS')
+if tup.getconfig('DEBUG') == 'true'
+then
+	CompileFlags = CompileFlags .. ' -ggdb -O0'
+	LinkFlags = LinkFlags .. ' -ggdb -O0'
+else
+	CompileFlags = CompileFlags .. ' -O3 -DNDEBUG'
+end
+if tup.getconfig('PLATFORM') == 'windows'
+then
+	CompileFlags = CompileFlags .. ' -DWINDOWS'
+	if tup.getconfig('DEBUG') ~= 'true'
+	then
+		CompileFlags = CompileFlags .. ' -mms-bitfields -mwindows'
+		LinkFlags = LinkFlags .. ' -mwindows'
+	end
+end
+if tup.getconfig('DEBUG') == 'true' or tup.getconfig('PLATFORM') ~= 'windows'
+then
+	CompileFlags = CompileFlags .. ' -DRENGENERAL_FILESYSTEM_DATALOCATION=\\"' .. tup.getconfig('DATADIRECTORY') .. '\\" '
+end
+
+CommandPrefix = ''
+CommandSuffix = ''
+if tup.getconfig('TUP_PLATFORM') == 'win32'
+then
+	CommandPrefix = ''
+	CommandSuffix = ''
+end
+
+Rule = 
+{
+	Object = function(Input)
+		local Output = StripPath(Input) .. '.o'
+		tup.definerule{
+			inputs = {Input},
+			outputs = {Output},
+			command = CommandPrefix .. tup.getconfig('COMPILER') .. ' ' .. CompileFlags .. ' -c ' .. Input .. ' -o ' .. Output .. CommandSuffix} 
+		return Output
+	end,
+	Executable = function(Inputs, Output)
+		tup.definerule{
+			inputs = Inputs,
+			outputs = {Output},
+			command = CommandPrefix .. tup.getconfig('COMPILER') .. ' ' .. LinkFlags .. ' ' .. table.concat(Inputs, ' ') .. ' ' .. LinkLibraries .. ' -o ' .. Output .. CommandSuffix}
+	end,
+}
+
