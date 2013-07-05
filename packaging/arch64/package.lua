@@ -1,15 +1,14 @@
 #!/usr/bin/lua
-dofile '../../info.include.lua'
+dofile '../../info.lua'
 
-local Variant = '../../variant-release'
-if arg[1] and arg[1] == 'debug' then Variant = '../../variant-debug' end
-
-if not os.execute('test -d ' .. Variant)
-then
-	error('You must have a build in variant directory ' .. Variant .. ' for this to work.')
+local Base = function(Filename)
+	return (Filename:gsub('.*/', ''))
 end
 
-io.open('PKGBUILD', 'w+'):write([[
+local Here = io.popen('pwd'):read() .. '/'
+
+os.execute('mkdir .tmp')
+io.open('.tmp/PKGBUILD', 'w+'):write([[
 pkgname=]] .. Info.PackageName .. [[
 
 pkgver=]] .. Info.Version .. [[
@@ -36,28 +35,26 @@ source=($pkgname-$pkgver.tar.gz)
 noextract=()
 md5sums=('')
 
-build() {
-	echo "Build the program first then run ./package.lua, not makepkg directly." 1>&2
-	return 1
-}
-
-check() {
-	echo Nop 2>&- 1>&-
-}
-
 package() {
 	mkdir -p $pkgdir/usr/bin/
-	mv $srcdir/inscribist $pkgdir/usr/bin/
+]] .. (function()
+	local Out = {}
+	for FileIndex = 1, #arg
+	do
+		Out[#Out + 1] = '\tcp ' .. Here .. arg[FileIndex] .. ' $pkgdir/usr/bin/\n'
+	end
+	return table.concat(Out)
+end)() .. [[
 	mkdir -p $pkgdir/usr/share
-	mv $srcdir/data/* $pkgdir/usr/share
+	cp ]] .. Here .. [[../../data/* $pkgdir/usr/share
 	mkdir -p $pkgdir/usr/share/licenses/$pkgname
-	cp $srcdir/license.txt $pkgdir/usr/share/licenses/$pkgname/
+	cp ]] .. Here .. [[../../license.txt $pkgdir/usr/share/licenses/$pkgname/
 }
 ]]):close()
 
-os.execute('mkdir -p src')
-os.execute('cp ' .. Variant .. '/build/inscribist src')
-os.execute('cp ../../license.txt src')
-os.execute('makepkg --repackage --force')
-os.execute('rm PKGBUILD')
+os.execute('mkdir temp/src')
+os.execute('cd temp && makepkg --repackage --noextract --nocheck --force')
+os.execute('cp temp/' .. Info.PackageName .. '-' .. tostring(Info.Version) .. '-1-x86_64.pkg.tar.xz .')
+os.execute('cp temp/PKGBUILD .')
+os.execute('rm -r .tmp')
 

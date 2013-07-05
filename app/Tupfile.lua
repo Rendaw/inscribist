@@ -14,7 +14,7 @@ SettingsObject = Define.Object
 }
 InfoHeader = Define.Lua
 {
-	Out = Item 'info.h',
+	Outputs = Item 'info.h',
 	Script = 'info2h.lua'
 }
 
