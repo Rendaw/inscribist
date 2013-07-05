@@ -1,11 +1,17 @@
 # true, false
 CONFIG_DEBUG=true
 
-# arch, ubuntu, windows
-CONFIG_PLATFORM=arch
+# arch64, ubuntu12, ubuntu12_64, windows
+CONFIG_PLATFORM=arch64
 
 # g++, clang, cl
 CONFIG_COMPILER=g++
+
+# g++, g++-4.8, cl.exe..
+CONFIG_COMPILERBIN=g++
+
+# g++, link.exe...
+CONFIG_LINKERBIN=g++
 
 # Extra compile flags
 # Optional
@@ -17,9 +23,19 @@ CONFIG_LINKFLAGS=
 
 #|| Project specific config
 
+#|||| Linux specific config
+
 # Output of pkg-config --cflags gtk+-2.0
 CONFIG_GTKBUILDFLAGS=
 
 # Output of pkg-config --libs gtk+-2.0
 CONFIG_GTKLINKFLAGS=
+
+# Arch: Output of pkg-config --cflags lua
+# Ubuntu: Output of pkg-config --cflags lua5.2
+CONFIG_LUABUILDFLAGS=
+
+# Arch: Output of pkg-config --libs lua
+# Ubuntu: Output of pkg-config --libs lua5.2
+CONFIG_LUALINKFLAGS=
 

@@ -19,7 +19,7 @@ InfoHeader = Define.Lua
 }
 
 local LinkFlags
-LinkFlags = '-lbz2 -llua'
+LinkFlags = '-lbz2'
 App = Define.Executable
 {
 	Name = 'inscribist',

@@ -1,4 +1,6 @@
 #!/usr/bin/lua
+local arg = arg
+_G.arg = nil
 dofile '../../info.lua'
 
 local Base = function(Filename)

@@ -1,3 +1,5 @@
+if tup.getconfig('PLATFORM') ~= 'arch64' then return end
+
 DoOnce 'info.lua'
 DoOnce 'app/Tupfile.lua'
 

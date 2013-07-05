@@ -2,8 +2,8 @@
 tup.include 'tupsupport/support.lua'
 
 -- Overrides for defaults
-local BuildFlags = tup.getconfig('BUILDFLAGS') .. ' ' .. tup.getconfig('GTKBUILDFLAGS')
-local LinkFlags = tup.getconfig('LINKFLAGS') .. ' ' .. tup.getconfig('GTKLINKFLAGS')
+local BuildFlags = tup.getconfig('BUILDFLAGS') .. ' ' .. tup.getconfig('GTKBUILDFLAGS') .. ' ' .. tup.getconfig('LUABUILDFLAGS')
+local LinkFlags = tup.getconfig('LINKFLAGS') .. ' ' .. tup.getconfig('GTKLINKFLAGS') .. ' ' .. tup.getconfig('LUALINKFLAGS')
 
 local OldObject = Define.Object
 Define.Object = function(Arguments)
