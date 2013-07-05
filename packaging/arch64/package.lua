@@ -7,8 +7,8 @@ end
 
 local Here = io.popen('pwd'):read() .. '/'
 
-os.execute('mkdir .tmp')
-io.open('.tmp/PKGBUILD', 'w+'):write([[
+os.execute('mkdir temp')
+io.open('temp/PKGBUILD', 'w+'):write([[
 pkgname=]] .. Info.PackageName .. [[
 
 pkgver=]] .. Info.Version .. [[
@@ -56,5 +56,5 @@ os.execute('mkdir temp/src')
 os.execute('cd temp && makepkg --repackage --noextract --nocheck --force')
 os.execute('cp temp/' .. Info.PackageName .. '-' .. tostring(Info.Version) .. '-1-x86_64.pkg.tar.xz .')
 os.execute('cp temp/PKGBUILD .')
-os.execute('rm -r .tmp')
+os.execute('rm -r temp')
 
