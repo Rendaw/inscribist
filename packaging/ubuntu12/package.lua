@@ -26,7 +26,7 @@ Section: Graphics
 Priority: Optional
 Architecture: ]] .. arg[1] .. [[
 
-Depends: libstdc++6 (>= 4.7.0-7ubuntu3), lua5.2 (>= 5.2.0-2)
+Depends: libstdc++6 (>= 4.7.0-7ubuntu3), liblua5.2-0 (>= 5.2.0-2), libbz2-1.0 (>= 1.0.6-1), libgtk2.0-0 (>= 2.24.10-0ubuntu6)
 Maintainer: ]] .. Info.Author .. ' <' .. Info.EMail .. [[>
 Description: ]] .. Info.ExtendedDescription .. [[
 
