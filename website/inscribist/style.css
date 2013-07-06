@@ -49,6 +49,8 @@ ul#links li a
 }
 ul#links li a:hover { color: black; background-color: white; }
 
+ul#download { list-style-type: none; }
+
 table#content td { vertical-align: top; }
 
 table#content a.screenshot { display: block; padding: 24px; }
