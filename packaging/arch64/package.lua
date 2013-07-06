@@ -47,8 +47,8 @@ package() {
 	end
 	return table.concat(Out)
 end)() .. [[
-	mkdir -p $pkgdir/usr/share
-	cp ]] .. Here .. [[../../data/* $pkgdir/usr/share
+	mkdir -p $pkgdir/usr/share/$pkgname
+	cp ]] .. Here .. [[../../data/* $pkgdir/usr/share/$pkgname/
 	mkdir -p $pkgdir/usr/share/licenses/$pkgname
 	cp ]] .. Here .. [[../../license.txt $pkgdir/usr/share/licenses/$pkgname/
 }
