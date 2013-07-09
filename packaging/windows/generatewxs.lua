@@ -1,6 +1,6 @@
 #!/usr/bin/lua
-dofile '../../info.include.lua'
-dofile 'package.include.lua'
+dofile '../../info.lua'
+dofile 'config.lua'
 
 local UpgradeGUID = '628A99DD-AEE3-423E-B949-4781D97D98B5'
 local PackageGUID = 'E2D0EB03-D081-4BFD-B2BD-87BB8F5EFDAC'

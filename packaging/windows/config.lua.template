@@ -1,0 +1,32 @@
+-- This path probably ends with locale, and should contain subdirectories named by language
+GtkTranslationPath = [[]]
+
+-- This contains a list of paths to required dlls to be packaged with the installer.  Paths should be specified absolutely.
+-- Here is a list of required dlls at the time of writing:
+--[[
+	lua52.dll
+	gbzip2.dll
+	glibgtk-win32-2.0-0.dll
+	glibgdk-win32-2.0-0.dll
+	glibatk-1.0-0.dll
+	glibgio-2.0-0.dll
+	glibpangoft2-1.0-0.dll
+	glibpangocairo-1.0-0.dll
+	glibgdk_pixbuf-2.0-0.dll
+	glibcairo-2.dll
+	glibpango-1.0-0.dll
+	gfreetype6.dll
+	glibfontconfig-1.dll
+	glibgobject-2.0-0.dll
+	glibglib-2.0-0.dll
+	gintl.dll
+	glibexpat-1.dll
+	glibpng14-14.dll
+	gzlib1.dll
+	glibgmodule-2.0-0.dll
+	glibpangowin32-1.0-0.dll
+	glibgthread-2.0-0.dll
+	libgcc_s_sjlj-1.dll
+	libstdc++-6.dll
+]]
+LibBinaries = {''}
