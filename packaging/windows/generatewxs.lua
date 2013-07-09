@@ -8,7 +8,6 @@ local Version = '1.' .. tostring(Info.Version) .. '.0'
 
 local LanguageCode = 1033
 local LanguageCodepageCode = 1252
-local Language = ''
 local LanguageSuffix = ''
 if arg[1] 
 then 
@@ -62,7 +61,16 @@ function PackageTranslationComponents()
 			Pre .. '\t' .. [[<File Id="CoreComponentTranslation]] .. Index .. [[File" Source="]] .. GtkTranslationPath .. '\\' .. Language .. '\\LC_MESSAGES\\' .. File .. [[.mo" KeyPath="yes" />]] .. '\n' ..
 			Pre .. [[</Component>]] .. '\n')
 	end
-	return table.concat(Out, '\t\t\t\t\t\t\t\t\t')
+	return
+					[[<Directory Id="GETTEXT_share" Name="share">
+						<Directory Id="GETTEXT_locale" Name="locale">
+							<Directory Id="GETTEXT_]] .. Language .. [[" Name="]] .. Language .. [[">
+								<Directory Id="GETTEXT_LC_MESSAGES" Name="LC_MESSAGES">
+									]] .. table.concat(Out, '\t\t\t\t\t\t\t\t\t') .. [[
+								</Directory>
+							</Directory>
+						</Directory>
+					</Directory>]]
 end
 
 function PackageTranslationFeatureItems()
@@ -110,16 +118,8 @@ io.open('./install_' .. Info.PackageName .. LanguageSuffix .. '.wxs', 'w+'):writ
 					<Component Id="CoreComponent" Guid="*">
 						<File Id="CoreComponentFile" Source="..\..\app\build\inscribist.exe" KeyPath="yes" Checksum="yes" />
 					</Component>
-					]] .. PackageBinaryComponents() .. [[
-					<Directory Id="GETTEXT_share" Name="share">
-						<Directory Id="GETTEXT_locale" Name="locale">
-							<Directory Id="GETTEXT_]] .. Language .. [[" Name="]] .. Language .. [[">
-								<Directory Id="GETTEXT_LC_MESSAGES" Name="LC_MESSAGES">
-									]] .. PackageTranslationComponents() .. [[
-								</Directory>
-							</Directory>
-						</Directory>
-					</Directory>
+					]] .. PackageBinaryComponents() .. '\n' .. [[
+					]] .. PackageTranslationComponents() .. '\n' .. [[
 					]] .. FileComponent(5, 'CoreIcon', '..\\..\\data\\icon32.png') .. [[
 					]] .. FileComponent(5, 'CoreLicense', '..\\..\\license.txt') .. [[
 					]] .. FileComponent(5, 'LuaLicense', 'lualicense.txt') .. [[
