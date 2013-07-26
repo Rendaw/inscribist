@@ -90,12 +90,9 @@ SettingsData::SettingsData(void) :
 
 	for (unsigned int CurrentBrush = 0; CurrentBrush < 10; CurrentBrush++)
 	{
-		float const RotatedBrush = (CurrentBrush + 9) % 10;
-		float const HeavyDiameterDefault = 0.05f + 
-			RotatedBrush * 0.1f +
-			powf(RotatedBrush / 10.0f, 4.0f) * 49.0f;
+		float const HeavyDiameterDefault = 0.7964f;
 		Brushes.push_back(new BrushSettings(
-			Get("Brush" + AsString(CurrentBrush) + "_Black", (CurrentBrush % 2) == 1),
+			Get("Brush" + AsString(CurrentBrush) + "_Black", true),
 			HeavyDiameterRange.Constrain(Get("Brush" + AsString(CurrentBrush) + "_HeavyDiameter", HeavyDiameterDefault)),
 			LightDiameterRange.Constrain(Get("Brush" + AsString(CurrentBrush) + "_LightDiameter", LightDiameterDefault))));
 	}

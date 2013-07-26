@@ -1,0 +1,12 @@
+Requirements: gtk+2 bz2 lua5.2 tup (with temp directory fixes)
+
+1. Copy tup.conf.template to tup.conf (either in the top level directory or a subdirectory such as build/).  The directory you place it in will be referred to as the "build root".
+2. Edit tup.conf with appropriate values.
+3. Run "tup init" in the top inscribist directory.
+4. Run "tup upd".
+4. Install the package in the appropriate directory under "build root"/packaging
+
+Build scripts and modifications are welcome upstream.
+
+URL: http://www.zarbosoft.com/inscribist
+Use the forums or github for support, bug reports, etc.
